@@ -4,6 +4,7 @@ from elabapi_python.rest import ApiException
 from tkinter import filedialog
 import os
 import json
+import markdownify
 
 
 class HelperElabftw:
@@ -38,8 +39,13 @@ class ELNResponse:
         else:
             return self
 
-    def convert_to_markdown(self) -> str:
-        pass
+    def convert_to_markdown(self) -> Union[str, None]:
+        if self.response is None:
+            print("No response available to convert to markdown - request data first!")
+            return None
+        md_body = markdownify.markdownify(self.response["body"])
+
+        return md_body
 
     def extract_metadata(self):
         self.metadata = {}
@@ -50,7 +56,29 @@ class ELNResponse:
         self.metadata["experimentType"] = experiment_type
 
     def extract_tables(self) -> list[list]:
-        pass
+        md_body = self.convert_to_markdown()
+
+        md_lines = md_body.split("\n")
+
+        tables = []
+
+        table_started = False
+
+        # when the first line of a table is detected, all subsequent table lines are appended to the same sublist
+        for line in md_lines:
+            if len(line) == 0:
+                pass
+            elif line[0] == "|" and not table_started:
+                table_started = True
+                tables.append([list_from_string(line, separator="|")])
+            elif line[0] == "|" and table_started:
+                tables[-1].append(list_from_string(line, separator="|"))
+            else:
+                table_started = False
+
+        print(f"Extracted {len(tables)} table(s)")
+
+        return tables
 
     def process_with_template(self, template=None):
         pass
@@ -185,3 +213,36 @@ def select_item_from_api_response(response_list):
             break
 
     return selected_response
+
+
+def list_from_string(string: str, separator="|") -> list:
+    """
+    Splits the passed string into a list of string values using the separator provided.
+    @param string: Any string
+    @param separator: Character(s) where lines should be split
+    @return: List of the separated string values
+    """
+    string = string.split(separator)
+
+    lst = []
+
+    for entry in string:
+        if entry != "":
+            lst.append(try_float_conversion(entry.strip()))
+
+    return lst
+
+
+def try_float_conversion(string: str, allow_comma=True) -> float or str:
+    """
+    Attempts to convert the passed string to a float.
+    @param string: String to convert to float
+    @param allow_comma: If True, string floats using commas instead of points for the decimal separator will be
+    converted as well
+    @return: Float value of the string or the original string if it could not be converted to float
+    """
+    try:
+        float_value = float(string.replace(",", ".")) if allow_comma else float(string)
+        return float_value
+    except ValueError:
+        return string
