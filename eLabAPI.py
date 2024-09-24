@@ -3,6 +3,7 @@ import elabapi_python
 from elabapi_python.rest import ApiException
 from tkinter import filedialog
 import os
+import json
 
 
 class HelperElabftw:
@@ -28,6 +29,14 @@ class ELNResponse:
         self.response = response
         self.metadata = {}
         self.tables = None
+
+    def __str__(self):
+        if self.response is not None:
+            string = json.dumps(self.response, indent=4)
+
+            return string
+        else:
+            return self
 
     def convert_to_markdown(self) -> str:
         pass
@@ -71,20 +80,48 @@ data: {"received" if self.response is not None else "none"}
 
         return string
 
-    def request(self, query=None, limit=None) -> Union[ELNResponse, None]:
+    def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False
+                ) -> Union[ELNResponse, list[ELNResponse], None]:
+        """
+        Sends a request to the API and stores / returns the response as a ELNResponse object
+        :param query: Term to search for in the entry titles
+        :param limit: Maximum amount of results returned by the response
+        :param advanced_query: Element-value pair (i.e. 'id:1234') to filter response
+        :param allow_list: If True, a list of ELNResponse objects is returned instead of asking the user to select one
+        :return: Response for the given request
+        """
         helper = HelperElabftw(self.api_key, self.url)
         api_client = helper.api_client
 
         items = elabapi_python.ItemsApi(api_client)
 
-        items_list = items.read_items(limit=limit)
+        if query is not None:
+            items_list = items.read_items(_preload_content=False, limit=limit,
+                                          q=query)
+        elif advanced_query is not None:
+            items_list = items.read_items(_preload_content=False, limit=limit,
+                                          extended=advanced_query.replace(" ", ""))
+        else:
+            items_list = items.read_items(_preload_content=False, limit=limit)
 
-        if items_list is None:
+        items_list = items_list.json()
+
+        if items_list is None or items_list == []:
             return None
+        elif allow_list:
+            response_list = []
+            for item in items_list:
+                response_list.append(ELNResponse(item))
+            return response_list
 
-        selection = items_list[0]
+        if len(items_list) == 1:
+            selection = items_list[0]
+        else:
+            selection = select_item_from_api_response(items_list)
 
         response = ELNResponse(response=selection)
+
+        self.response = response
 
         return response
 
@@ -107,6 +144,9 @@ data: {"received" if self.response is not None else "none"}
             with open(file, "r") as readfile:
                 self.api_key = readfile.read()
 
+    def clear_response(self):
+        self.response = None
+
     def ping_api(self) -> bool:
         """
         Test if the API could be reached with the defined configuration.
@@ -119,7 +159,29 @@ data: {"received" if self.response is not None else "none"}
         else:
             self.working = False
 
+        self.clear_response()
+
         return self.working
 
 
+def select_item_from_api_response(response_list):
 
+    print("Received multiple experiments from request:\n")
+
+    for i, item in enumerate(response_list):
+        print("\t", i, item["title"])
+
+    selected_response = None
+
+    while True:
+        user_selection = input("\nSelect experiment from list: ")
+        try:
+            selected_index = int(user_selection.replace(" ", ""))
+            selected_response = response_list[selected_index]
+        except ValueError or IndexError:
+            print("Invalid input!")
+
+        if selected_response is not None:
+            break
+
+    return selected_response
