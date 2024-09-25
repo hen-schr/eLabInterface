@@ -31,6 +31,7 @@ class ELNResponse:
         self.response = response
         self.metadata = {
             "id": None,
+            "title": None,
             "date": None,
             "elabid": None,
             "created_at": None,
