@@ -29,13 +29,23 @@ class HelperElabftw:
 class ELNResponse:
     def __init__(self, response=None):
         self.response = response
-        self.metadata = {}
+        self.metadata = {
+            "id": None,
+            "date": None,
+            "elabid": None,
+            "created_at": None,
+            "modified_at": None,
+            "status_title": None,
+            "tags": None,
+            "fullname": None,
+            "experimentType": None
+        }
         self.tables = None
 
     def __str__(self):
         string = "ELNResponse object\n"
         for entry in self.metadata:
-            string += f"{entry}: {self.metadata[entry]}"
+            string += f"\t{entry}: {self.metadata[entry]}\n" if self.metadata[entry] is not None else ""
 
         return string
 
@@ -56,8 +66,11 @@ class ELNResponse:
         return md_body
 
     def extract_metadata(self):
-        self.metadata = {}
         self.identify_experiment_type()
+
+        for element in self.metadata:
+            if self.metadata[element] is None and element in self.response:
+                self.metadata[element] = self.response[element]
 
     def identify_experiment_type(self):
         experiment_type = "unknown"

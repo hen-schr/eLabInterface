@@ -8,6 +8,6 @@ importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments
 importer.ping_api()
 
 experiment = importer.request(query="HS_F020", limit=1)
-experiment.identify_experiment_type()
+experiment.extract_metadata()
 
 print(experiment)
