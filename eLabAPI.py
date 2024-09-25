@@ -5,6 +5,7 @@ from tkinter import filedialog
 import os
 import json
 import markdownify
+import pandas as pd
 
 
 class HelperElabftw:
@@ -32,6 +33,13 @@ class ELNResponse:
         self.tables = None
 
     def __str__(self):
+        string = "ELNResponse object\n"
+        for entry in self.metadata:
+            string += f"{entry}: {self.metadata[entry]}"
+
+        return string
+
+    def print_response(self):
         if self.response is not None:
             string = json.dumps(self.response, indent=4)
 
@@ -53,6 +61,12 @@ class ELNResponse:
 
     def identify_experiment_type(self):
         experiment_type = "unknown"
+
+        metadata = json.loads(self.response["metadata"])
+
+        if "experimentType" in metadata["extra_fields"]:
+            experiment_type = metadata["extra_fields"]["experimentType"]["value"]
+
         self.metadata["experimentType"] = experiment_type
 
     def extract_tables(self) -> list[list]:
@@ -100,7 +114,7 @@ class ELNImporter:
             status = "not working"
 
         string = f"""
-ELNImporter class ({self.permissions})
+ELNImporter object ({self.permissions})
 url: {self.url}
 status: {status}
 data: {"received" if self.response is not None else "none"}
