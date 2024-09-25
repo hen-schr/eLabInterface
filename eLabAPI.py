@@ -8,6 +8,57 @@ import markdownify
 import pandas as pd
 
 
+class MDInterpreter:
+    def __init__(self, raw_content: str):
+        self.raw = raw_content
+        self.tables = []
+
+    def extract_tables(self):
+        md_lines = self.raw.split("\n")
+
+        table_started = False
+
+        for line in md_lines:
+            if len(line) == 0:
+                pass
+            elif line[0] == ".":
+                self.interpret_inline_commands()
+            elif line[0] == "|" and not table_started:
+                table_started = True
+                self.tables.append([list_from_string(line, separator="|")])
+            elif line[0] == "|" and table_started:
+                self.tables[-1].append(list_from_string(line, separator="|"))
+            else:
+                table_started = False
+
+    def interpret_inline_commands(self):
+        pass
+
+    def dummy(self):
+
+        md_lines = self.raw.split("\n")
+
+        tables = []
+
+        table_started = False
+
+        # when the first line of a table is detected, all subsequent table lines are appended to the same sublist
+        for line in md_lines:
+            if len(line) == 0:
+                pass
+            elif line[0] == "|" and not table_started:
+                table_started = True
+                tables.append([list_from_string(line, separator="|")])
+            elif line[0] == "|" and table_started:
+                tables[-1].append(list_from_string(line, separator="|"))
+            else:
+                table_started = False
+
+        print(f"Extracted {len(tables)} table(s)")
+
+        return tables
+
+
 class HelperElabftw:
     """
     As found in the API's documentation (https://github.com/elabftw/elabapi-python)
@@ -86,27 +137,12 @@ class ELNResponse:
     def extract_tables(self) -> list[list]:
         md_body = self.convert_to_markdown()
 
-        md_lines = md_body.split("\n")
+        md_interpreter = MDInterpreter(md_body)
 
-        tables = []
+        md_interpreter.extract_tables()
 
-        table_started = False
+        print(md_interpreter.tables)
 
-        # when the first line of a table is detected, all subsequent table lines are appended to the same sublist
-        for line in md_lines:
-            if len(line) == 0:
-                pass
-            elif line[0] == "|" and not table_started:
-                table_started = True
-                tables.append([list_from_string(line, separator="|")])
-            elif line[0] == "|" and table_started:
-                tables[-1].append(list_from_string(line, separator="|"))
-            else:
-                table_started = False
-
-        print(f"Extracted {len(tables)} table(s)")
-
-        return tables
 
     def process_with_template(self, template=None):
         pass

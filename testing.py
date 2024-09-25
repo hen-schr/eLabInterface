@@ -9,5 +9,6 @@ importer.ping_api()
 
 experiment = importer.request(query="HS_F020", limit=1)
 experiment.extract_metadata()
+experiment.extract_tables()
 
 print(experiment)
