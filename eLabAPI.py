@@ -1,13 +1,13 @@
 from typing import Union, Literal
 import elabapi_python
-from elabapi_python.rest import ApiException
 from tkinter import filedialog
 import os
 import json
 import markdownify
 import pandas as pd
-import csv
-import numpy as np
+
+
+script_version = 0.1
 
 
 class MDInterpreter:
