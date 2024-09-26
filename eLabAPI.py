@@ -7,6 +7,7 @@ import json
 import markdownify
 import pandas as pd
 import csv
+import numpy as np
 
 
 class MDInterpreter:
@@ -15,25 +16,47 @@ class MDInterpreter:
         self.tables = []
 
     def extract_tables(self, output_format: Literal["dataframes", "list"] = "dataframes"):
-        lines = self.raw.split("\n")
 
-        tables = []
+        commands, tables = self._get_raw_tabular_data()
+
         data_objects = []
 
-        table_started = False
+        if output_format == "list":
+            for i, table in enumerate(tables):
 
+                converted_table = self._interpret_inline_commands(commands[i], table)
+
+                if converted_table is not None:
+                    data_objects.append(converted_table)
+
+        elif output_format == "dataframes":
+            for i, table in enumerate(tables):
+                converted_table = self._table_array_to_dataframe(table)
+                converted_table = self._interpret_inline_commands(commands[i], converted_table)
+                data_objects.append(converted_table)
+
+        self.tables = data_objects
+
+        return tables
+
+    def _get_raw_tabular_data(self, separator: str = "|"):
+
+        tables = []
+        table_started = False
         start_index = 0
         commands = [[]]
+
+        lines = self.raw.split("\n")
 
         for i, line in enumerate(lines):
             if len(line) == 0:
                 pass
             elif line[0] == ".":
                 commands[-1].append(line[1:])
-            elif line[0] == "|" and not table_started:
+            elif line[0] == separator and not table_started:
                 table_started = True
                 start_index = i
-            elif table_started and line[0] == "|":
+            elif table_started and line[0] == separator:
                 pass
             elif table_started:
                 table_started = False
@@ -44,18 +67,13 @@ class MDInterpreter:
 
         commands = commands[:-1]
 
-        if output_format == "list":
-            for i, table in enumerate(tables):
-                converted_table = self._line_list_to_array(table)
+        converted_tables = []
 
-                converted_table = self._interpret_inline_commands(commands[i], converted_table)
+        for table in tables:
+            conv_table = self._line_list_to_array(table)
+            converted_tables.append(conv_table)
 
-                if converted_table is not None:
-                    data_objects.append(converted_table)
-
-        self.tables = data_objects
-
-        return tables
+        return commands, converted_tables
 
     @staticmethod
     def _line_list_to_array(table_lines: list[str], separator=" | "):
@@ -68,14 +86,24 @@ class MDInterpreter:
         return converted_table
 
     @staticmethod
-    def _table_array_to_dataframe(table_array):
-        pass
+    def _table_array_to_dataframe(table_array: list[list]):
+        df = pd.DataFrame.from_records(table_array)
+
+        return df
 
     @staticmethod
-    def _interpret_inline_commands(commands, table):
-        for command in commands:
-            if command == "ignore":
-                table = None
+    def _interpret_inline_commands(commands: list[str], table: Union[list[list], pd.DataFrame]
+                                   ) -> Union[list[list], pd.DataFrame]:
+        if type(table) is list[list]:
+            for command in commands:
+                if command == "ignore":
+                    table = None
+        elif type(table) is pd.DataFrame:
+            for command in commands:
+                if command == "ignore":
+                    table = None
+                elif command[:7] == "title\\=":
+                    title = command[7:]
 
         return table
 
