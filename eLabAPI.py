@@ -161,7 +161,7 @@ class ELNResponse:
     def tables_to_str(self):
         string = ""
         for table in self._tables:
-            if type(table) is list[list]:
+            if type(table) is list:
                 for line in table:
                     string += "\t".join(line) + "\n"
             elif type(table) is pd.DataFrame:
