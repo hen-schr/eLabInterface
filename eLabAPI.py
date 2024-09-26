@@ -140,8 +140,10 @@ class MDInterpreter:
         if not secure:
             dataframe = dataframe.apply(lambda x: x.str.replace(',', '.'))
         else:
+            # TODO secure conversion for the case that entries contain both points and commas
             pass
         return dataframe
+
 
 class HelperElabftw:
     """
