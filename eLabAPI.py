@@ -158,6 +158,19 @@ class ELNResponse:
         else:
             return self
 
+    def print_tables(self):
+        string = ""
+        for table in self._tables:
+            if type(table) is list[list]:
+                for line in table:
+                    string += "\t".join(line) + "\n"
+            elif type(table) is pd.DataFrame:
+                string += table.to_string()
+
+            string += "\n\n"
+
+        print(string)
+
     def convert_to_markdown(self) -> Union[str, None]:
         if self._response is None:
             print("No response available to convert to markdown - request data first!")

@@ -11,4 +11,4 @@ experiment = importer.request(query="HS_F020", limit=1)
 experiment.extract_metadata()
 experiment.extract_tables(output_format="dataframes")
 
-print(len(experiment._tables))
+experiment.print_tables()
