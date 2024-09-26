@@ -254,6 +254,14 @@ class ELNResponse:
     def process_with_template(self, template=None):
         pass
 
+    def save_to_csv(self, file, index=None, separator=";"):
+
+        if index is None:
+            for table in self._tables:
+                table.to_csv(file, encoding="utf-8", sep=separator)
+        else:
+            self._tables[index].to_csv(file, encoding="utf-8", sep=separator)
+
 
 class ELNImporter:
     def __init__(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only"):
