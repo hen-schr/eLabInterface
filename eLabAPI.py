@@ -15,7 +15,7 @@ class MDInterpreter:
         self.raw = raw_content
         self.tables = []
 
-    def extract_tables(self, output_format: Literal["dataframes", "list"] = "dataframes"):
+    def extract_tables(self, output_format: Literal["dataframes", "list"] = "dataframes", reformat=True):
 
         commands, tables = self._get_raw_tabular_data()
 
@@ -32,7 +32,12 @@ class MDInterpreter:
         elif output_format == "dataframes":
             for i, table in enumerate(tables):
                 converted_table = self._table_array_to_dataframe(table)
+                converted_table = converted_table.drop([1])
                 converted_table = self._interpret_inline_commands(commands[i], converted_table)
+
+                if reformat:
+                    converted_table = self._reformat_dataframe(converted_table)
+
                 data_objects.append(converted_table)
 
         self.tables = data_objects
@@ -107,6 +112,36 @@ class MDInterpreter:
 
         return table
 
+    def _reformat_dataframe(self, dataframe: pd.DataFrame, convert_numbers=True):
+
+        if dataframe.shape[1] == 2:
+            header = dataframe[dataframe.columns[0]].values.tolist()
+            dataframe = dataframe.set_axis(labels=header, axis=0)
+            dataframe = dataframe.drop(dataframe.columns[0], axis="columns")
+
+        else:
+            header = dataframe.iloc[0].values.tolist()
+            dataframe = dataframe.set_axis(labels=header, axis="columns")
+            dataframe = dataframe.drop(0)
+
+            if dataframe.columns[0].lower() in ["probe", "sample", "nr."]:
+                header = dataframe[dataframe.columns[0]].values.tolist()
+                dataframe = dataframe.set_axis(labels=header, axis=0)
+                dataframe = dataframe.drop(dataframe.columns[0], axis="columns")
+
+        dataframe = self._convert_comma_to_point(dataframe, secure=False)
+
+        dataframe = dataframe.convert_dtypes()
+
+        return dataframe
+
+    @staticmethod
+    def _convert_comma_to_point(dataframe, secure=True):
+        if not secure:
+            dataframe = dataframe.apply(lambda x: x.str.replace(',', '.'))
+        else:
+            pass
+        return dataframe
 
 class HelperElabftw:
     """

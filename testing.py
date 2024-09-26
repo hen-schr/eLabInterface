@@ -9,6 +9,6 @@ importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments
 
 experiment = importer.request(query="HS_F020", limit=1)
 experiment.extract_metadata()
-experiment.extract_tables(output_format="list")
+experiment.extract_tables(output_format="dataframes")
 
 print(experiment.tables_to_str())
