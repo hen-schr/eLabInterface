@@ -29,7 +29,7 @@ class MDInterpreter:
             if len(line) == 0:
                 pass
             elif line[0] == ".":
-                commands[-1].append(line)
+                commands[-1].append(line[1:])
             elif line[0] == "|" and not table_started:
                 table_started = True
                 start_index = i
@@ -45,11 +45,15 @@ class MDInterpreter:
         commands = commands[:-1]
 
         if output_format == "list":
-            for table in tables:
+            for i, table in enumerate(tables):
                 converted_table = self._line_list_to_array(table)
-                data_objects.append(converted_table)
 
-        print(data_objects)
+                converted_table = self._interpret_inline_commands(commands[i], converted_table)
+
+                if converted_table is not None:
+                    data_objects.append(converted_table)
+
+        self.tables = data_objects
 
         return tables
 
@@ -68,8 +72,12 @@ class MDInterpreter:
         pass
 
     @staticmethod
-    def _interpret_inline_commands(command):
-        pass
+    def _interpret_inline_commands(commands, table):
+        for command in commands:
+            if command == "ignore":
+                table = None
+
+        return table
 
 
 class HelperElabftw:
@@ -153,6 +161,8 @@ class ELNResponse:
         md_interpreter = MDInterpreter(md_body)
 
         md_interpreter.extract_tables(output_format=output_format)
+
+        self._tables = md_interpreter.tables
 
     def process_with_template(self, template=None):
         pass
