@@ -1,7 +1,7 @@
 """
-This script contains functionalities to access data from the electronic lab notebook (ELN) eLabFTW via the API as well
-as methods to convert the data into useful formats for further processing, such as dataframes, lists. Check the
-'example_of_use' function at the end of the script for quick reference.
+This small module contains functionalities to access data from the electronic lab notebook (ELN) eLabFTW via the API as
+well as methods to convert the data into useful formats for further processing, such as dataframes, lists. Check the
+'example_of_use' function at the end of the file for quick reference.
 
 © 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
@@ -16,7 +16,7 @@ import markdownify
 import pandas as pd
 
 
-script_version = 0.1
+module_version = 0.1
 
 
 class MDInterpreter:
