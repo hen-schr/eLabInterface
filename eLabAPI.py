@@ -1,8 +1,9 @@
 """
 This script contains functionalities to access data from the electronic lab notebook (ELN) eLabFTW via the API as well
-as methods to convert the data into useful formats for further processing, such as dataframes, lists.
+as methods to convert the data into useful formats for further processing, such as dataframes, lists. Check the
+'example_of_use' function at the end of the script for quick reference.
 
-© 2024 by Henrik Schröter is licensed under CC BY-SA 4.0
+© 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
 
@@ -416,3 +417,32 @@ def try_float_conversion(string: str, allow_comma=True) -> float or str:
         return float_value
     except ValueError:
         return string
+
+
+def example_of_use():
+    importer = ELNImporter()
+
+    importer.attach_api_key_from_file(
+        file="YOUR-API-KEY-FILE")
+    importer.configure_api(url="YOUR-API-HOST-URL", permissions="read only")
+
+    importer.ping_api()
+
+    # check state of the importer
+    print(importer)
+
+    # request experiment by searching for a term in the experiments' titles
+    experiment = importer.request(query="YOUR-QUERY", limit=1)
+    print(experiment.response_to_str())
+
+    # request experiment by searching for a term in a specific field
+    experiment = importer.request(query="FIELD:YOUR-QUERY", limit=1)
+    print(experiment.response_to_str())
+
+    # extract metadata from the api response
+    experiment.extract_metadata()
+
+    # extract table data from the experiments body and convert them to dataframes
+    experiment.extract_tables(output_format="dataframes")
+    print(experiment.tables_to_str())
+
