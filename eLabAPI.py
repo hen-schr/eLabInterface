@@ -150,7 +150,7 @@ class ELNResponse:
 
         return string
 
-    def print_response(self):
+    def response_to_str(self):
         if self._response is not None:
             string = json.dumps(self._response, indent=4)
 
@@ -158,7 +158,7 @@ class ELNResponse:
         else:
             return self
 
-    def print_tables(self):
+    def tables_to_str(self):
         string = ""
         for table in self._tables:
             if type(table) is list[list]:
@@ -169,7 +169,7 @@ class ELNResponse:
 
             string += "\n\n"
 
-        print(string)
+        return string
 
     def convert_to_markdown(self) -> Union[str, None]:
         if self._response is None:
