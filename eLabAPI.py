@@ -6,6 +6,7 @@ import os
 import json
 import markdownify
 import pandas as pd
+import csv
 
 
 class MDInterpreter:
@@ -13,50 +14,62 @@ class MDInterpreter:
         self.raw = raw_content
         self.tables = []
 
-    def extract_tables(self):
-        md_lines = self.raw.split("\n")
+    def extract_tables(self, output_format: Literal["dataframes", "list"] = "dataframes"):
+        lines = self.raw.split("\n")
+
+        tables = []
+        data_objects = []
 
         table_started = False
 
-        for line in md_lines:
+        start_index = 0
+        commands = [[]]
+
+        for i, line in enumerate(lines):
             if len(line) == 0:
                 pass
             elif line[0] == ".":
-                self.interpret_inline_commands()
+                commands[-1].append(line)
             elif line[0] == "|" and not table_started:
                 table_started = True
-                self.tables.append([list_from_string(line, separator="|")])
-            elif line[0] == "|" and table_started:
-                self.tables[-1].append(list_from_string(line, separator="|"))
-            else:
-                table_started = False
-
-    def interpret_inline_commands(self):
-        pass
-
-    def dummy(self):
-
-        md_lines = self.raw.split("\n")
-
-        tables = []
-
-        table_started = False
-
-        # when the first line of a table is detected, all subsequent table lines are appended to the same sublist
-        for line in md_lines:
-            if len(line) == 0:
+                start_index = i
+            elif table_started and line[0] == "|":
                 pass
-            elif line[0] == "|" and not table_started:
-                table_started = True
-                tables.append([list_from_string(line, separator="|")])
-            elif line[0] == "|" and table_started:
-                tables[-1].append(list_from_string(line, separator="|"))
-            else:
+            elif table_started:
                 table_started = False
+                stop_index = i - 2
+                commands.append([])
 
-        print(f"Extracted {len(tables)} table(s)")
+                tables.append(lines[start_index:stop_index - 2])
+
+        commands = commands[:-1]
+
+        if output_format == "list":
+            for table in tables:
+                converted_table = self._line_list_to_array(table)
+                data_objects.append(converted_table)
+
+        print(data_objects)
 
         return tables
+
+    @staticmethod
+    def _line_list_to_array(table_lines: list[str], separator=" | "):
+
+        converted_table = []
+
+        for line in table_lines:
+            converted_table.append(line[2:-2].split(sep=separator))
+
+        return converted_table
+
+    @staticmethod
+    def _table_array_to_dataframe(table_array):
+        pass
+
+    @staticmethod
+    def _interpret_inline_commands(command):
+        pass
 
 
 class HelperElabftw:
@@ -79,8 +92,8 @@ class HelperElabftw:
 
 class ELNResponse:
     def __init__(self, response=None):
-        self.response = response
-        self.metadata = {
+        self._response = response
+        self._metadata = {
             "id": None,
             "title": None,
             "date": None,
@@ -92,57 +105,54 @@ class ELNResponse:
             "fullname": None,
             "experimentType": None
         }
-        self.tables = None
+        self._tables = None
 
     def __str__(self):
         string = "ELNResponse object\n"
-        for entry in self.metadata:
-            string += f"\t{entry}: {self.metadata[entry]}\n" if self.metadata[entry] is not None else ""
+        for entry in self._metadata:
+            string += f"\t{entry}: {self._metadata[entry]}\n" if self._metadata[entry] is not None else ""
 
         return string
 
     def print_response(self):
-        if self.response is not None:
-            string = json.dumps(self.response, indent=4)
+        if self._response is not None:
+            string = json.dumps(self._response, indent=4)
 
             return string
         else:
             return self
 
     def convert_to_markdown(self) -> Union[str, None]:
-        if self.response is None:
+        if self._response is None:
             print("No response available to convert to markdown - request data first!")
             return None
-        md_body = markdownify.markdownify(self.response["body"])
+        md_body = markdownify.markdownify(self._response["body"])
 
         return md_body
 
     def extract_metadata(self):
         self.identify_experiment_type()
 
-        for element in self.metadata:
-            if self.metadata[element] is None and element in self.response:
-                self.metadata[element] = self.response[element]
+        for element in self._metadata:
+            if self._metadata[element] is None and element in self._response:
+                self._metadata[element] = self._response[element]
 
     def identify_experiment_type(self):
         experiment_type = "unknown"
 
-        metadata = json.loads(self.response["metadata"])
+        metadata = json.loads(self._response["metadata"])
 
         if "experimentType" in metadata["extra_fields"]:
             experiment_type = metadata["extra_fields"]["experimentType"]["value"]
 
-        self.metadata["experimentType"] = experiment_type
+        self._metadata["experimentType"] = experiment_type
 
-    def extract_tables(self) -> list[list]:
+    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes") -> list[list]:
         md_body = self.convert_to_markdown()
 
         md_interpreter = MDInterpreter(md_body)
 
-        md_interpreter.extract_tables()
-
-        print(md_interpreter.tables)
-
+        md_interpreter.extract_tables(output_format=output_format)
 
     def process_with_template(self, template=None):
         pass
