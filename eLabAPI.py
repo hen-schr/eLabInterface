@@ -1,3 +1,11 @@
+"""
+This script contains functionalities to access data from the electronic lab notebook (ELN) eLabFTW via the API as well
+as methods to convert the data into useful formats for further processing, such as dataframes, lists.
+
+© 2024 by Henrik Schröter is licensed under CC BY-SA 4.0
+Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
+"""
+
 from typing import Union, Literal
 import elabapi_python
 from tkinter import filedialog
