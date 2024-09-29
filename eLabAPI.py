@@ -336,7 +336,8 @@ data: {"received" if self.response is not None else "none"}
         except urllib3.exceptions.MaxRetryError:
             return None
 
-    def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only"):
+    def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
+                      feedback=True):
         if api_key is not None:
             self.api_key = api_key
         if url is not None:
@@ -344,11 +345,17 @@ data: {"received" if self.response is not None else "none"}
 
         self.permissions = permissions
 
-        if self.ping_api():
+        ping = self.ping_api()
+
+        if ping and feedback:
             print("API was successfully configured")
             return True
-        else:
+        elif ping and not feedback:
+            return True
+        elif not ping and feedback:
             print("Could not connect to API using the given configurations")
+            return False
+        else:
             return False
 
     def attach_api_key_from_file(self, file=None):
@@ -387,20 +394,29 @@ def select_item_from_api_response(response_list):
     for i, item in enumerate(response_list):
         print("\t", i, item["title"])
 
-    selected_response = None
-
     while True:
         user_selection = input("\nSelect experiment from list: ")
-        try:
-            selected_index = int(user_selection.replace(" ", ""))
-            selected_response = response_list[selected_index]
-        except ValueError or IndexError:
-            print("Invalid input!")
 
-        if selected_response is not None:
+        selected_index = check_user_selection(user_selection, response_list)
+
+        if selected_index is not None:
+            selected_response = response_list[selected_index]
             break
 
     return selected_response
+
+
+def check_user_selection(user_selection, selection_list):
+    try:
+        selected_index = int(user_selection.replace(" ", ""))
+        selection = selection_list[selected_index]
+        return selected_index
+    except ValueError:
+        print("Invalid input!")
+        return None
+    except IndexError:
+        print("Invalid input!")
+        return None
 
 
 def list_from_string(string: str, separator="|") -> list:
