@@ -14,7 +14,7 @@ import os
 import json
 import markdownify
 import pandas as pd
-
+import urllib3
 
 module_version = 0.1
 
@@ -302,35 +302,39 @@ data: {"received" if self.response is not None else "none"}
 
         items = elabapi_python.ItemsApi(api_client)
 
-        if query is not None:
-            items_list = items.read_items(_preload_content=False, limit=limit,
-                                          q=query)
-        elif advanced_query is not None:
-            items_list = items.read_items(_preload_content=False, limit=limit,
-                                          extended=advanced_query.replace(" ", ""))
-        else:
-            items_list = items.read_items(_preload_content=False, limit=limit)
+        try:
+            if query is not None:
+                items_list = items.read_items(_preload_content=False, limit=limit,
+                                              q=query)
+            elif advanced_query is not None:
+                items_list = items.read_items(_preload_content=False, limit=limit,
+                                              extended=advanced_query.replace(" ", ""))
+            else:
+                items_list = items.read_items(_preload_content=False, limit=limit)
 
-        items_list = items_list.json()
+            items_list = items_list.json()
 
-        if items_list is None or items_list == []:
+            if items_list is None or items_list == []:
+                return None
+            elif allow_list:
+                response_list = []
+                for item in items_list:
+                    response_list.append(ELNResponse(item))
+                return response_list
+
+            if len(items_list) == 1:
+                selection = items_list[0]
+            else:
+                selection = select_item_from_api_response(items_list)
+
+            response = ELNResponse(response=selection)
+
+            self.response = response
+
+            return response
+
+        except urllib3.exceptions.MaxRetryError:
             return None
-        elif allow_list:
-            response_list = []
-            for item in items_list:
-                response_list.append(ELNResponse(item))
-            return response_list
-
-        if len(items_list) == 1:
-            selection = items_list[0]
-        else:
-            selection = select_item_from_api_response(items_list)
-
-        response = ELNResponse(response=selection)
-
-        self.response = response
-
-        return response
 
     def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only"):
         if api_key is not None:
