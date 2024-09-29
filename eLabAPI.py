@@ -340,7 +340,12 @@ data: {"received" if self.response is not None else "none"}
 
         self.permissions = permissions
 
-        self.ping_api()
+        if self.ping_api():
+            print("API was successfully configured")
+            return True
+        else:
+            print("Could not connect to API using the given configurations")
+            return False
 
     def attach_api_key_from_file(self, file=None):
         if file is None:
