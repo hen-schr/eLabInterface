@@ -325,7 +325,7 @@ data: {"received" if self.response is not None else "none"}
             if len(items_list) == 1:
                 selection = items_list[0]
             else:
-                selection = select_item_from_api_response(items_list)
+                selection = self.select_item_from_api_response(items_list)
 
             response = ELNResponse(response=selection)
 
@@ -334,6 +334,37 @@ data: {"received" if self.response is not None else "none"}
             return response
 
         except urllib3.exceptions.MaxRetryError:
+            return None
+
+    def select_item_from_api_response(self, response_list):
+
+        print("Received multiple experiments from request:\n")
+
+        for i, item in enumerate(response_list):
+            print("\t", i, item["title"])
+
+        while True:
+            user_selection = input("\nSelect experiment from list: ")
+
+            selected_index = self.check_user_selection(user_selection, response_list)
+
+            if selected_index is not None:
+                selected_response = response_list[selected_index]
+                break
+
+        return selected_response
+
+    @staticmethod
+    def check_user_selection(user_selection, selection_list):
+        try:
+            selected_index = int(user_selection.replace(" ", ""))
+            selection = selection_list[selected_index]
+            return selected_index
+        except ValueError:
+            print("Invalid input!")
+            return None
+        except IndexError:
+            print("Invalid input!")
             return None
 
     def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
@@ -387,38 +418,6 @@ data: {"received" if self.response is not None else "none"}
         return self.working
 
 
-def select_item_from_api_response(response_list):
-
-    print("Received multiple experiments from request:\n")
-
-    for i, item in enumerate(response_list):
-        print("\t", i, item["title"])
-
-    while True:
-        user_selection = input("\nSelect experiment from list: ")
-
-        selected_index = check_user_selection(user_selection, response_list)
-
-        if selected_index is not None:
-            selected_response = response_list[selected_index]
-            break
-
-    return selected_response
-
-
-def check_user_selection(user_selection, selection_list):
-    try:
-        selected_index = int(user_selection.replace(" ", ""))
-        selection = selection_list[selected_index]
-        return selected_index
-    except ValueError:
-        print("Invalid input!")
-        return None
-    except IndexError:
-        print("Invalid input!")
-        return None
-
-
 def list_from_string(string: str, separator="|") -> list:
     """
     Splits the passed string into a list of string values using the separator provided.
@@ -431,8 +430,7 @@ def list_from_string(string: str, separator="|") -> list:
     lst = []
 
     for entry in string:
-        if entry != "":
-            lst.append(try_float_conversion(entry.strip()))
+        lst.append(try_float_conversion(entry.strip()))
 
     return lst
 
@@ -445,6 +443,11 @@ def try_float_conversion(string: str, allow_comma=True) -> float or str:
     converted as well
     @return: Float value of the string or the original string if it could not be converted to float
     """
+    if type(string) in [float, int]:
+        return string
+    elif type(string) is not str:
+        raise ValueError
+
     try:
         float_value = float(string.replace(",", ".")) if allow_comma else float(string)
         return float_value
