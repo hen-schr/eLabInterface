@@ -62,22 +62,35 @@ class MDInterpreter:
 
         lines = self.raw.split("\n")
 
+        # add empty line at the end of lines to make sure that table ends are detected correctly
+        lines.append("")
+
         for i, line in enumerate(lines):
-            if len(line) == 0:
+            if len(line) == 0 and not table_started:
                 pass
+
+            elif len(line) == 0 and table_started:
+                table_started = False
+                stop_index = i - 2
+                commands.append([])
+                tables.append(lines[start_index:stop_index])
+
             elif line[0] == ".":
                 commands[-1].append(line[1:])
+
             elif line[0] == separator and not table_started:
                 table_started = True
                 start_index = i
+
             elif table_started and line[0] == separator:
                 pass
+
             elif table_started:
                 table_started = False
                 stop_index = i - 2
                 commands.append([])
 
-                tables.append(lines[start_index:stop_index - 2])
+                tables.append(lines[start_index:stop_index])
 
         commands = commands[:-1]
 
@@ -202,7 +215,7 @@ class ELNResponse:
 
             return string
         else:
-            return self
+            return ""
 
     def tables_to_str(self):
         string = ""
@@ -418,11 +431,12 @@ data: {"received" if self.response is not None else "none"}
         return self.working
 
 
-def list_from_string(string: str, separator="|") -> list:
+def list_from_string(string: str, separator="|", strict_conversion=False) -> list:
     """
     Splits the passed string into a list of string values using the separator provided.
     @param string: Any string
     @param separator: Character(s) where lines should be split
+    @param strict_conversion: If True, all strings that can not be converted to a number are set to None
     @return: List of the separated string values
     """
     string = string.split(separator)
@@ -430,17 +444,18 @@ def list_from_string(string: str, separator="|") -> list:
     lst = []
 
     for entry in string:
-        lst.append(try_float_conversion(entry.strip()))
+        lst.append(try_float_conversion(entry.strip(), strict=strict_conversion))
 
     return lst
 
 
-def try_float_conversion(string: str, allow_comma=True) -> float or str:
+def try_float_conversion(string: str, allow_comma=True, strict=False) -> float or str:
     """
     Attempts to convert the passed string to a float.
     @param string: String to convert to float
     @param allow_comma: If True, string floats using commas instead of points for the decimal separator will be
     converted as well
+    @param strict: If True, strings that could not be converted to a number are converted to None
     @return: Float value of the string or the original string if it could not be converted to float
     """
     if type(string) in [float, int]:
@@ -452,7 +467,10 @@ def try_float_conversion(string: str, allow_comma=True) -> float or str:
         float_value = float(string.replace(",", ".")) if allow_comma else float(string)
         return float_value
     except ValueError:
-        return string
+        if strict:
+            return None
+        else:
+            return string
 
 
 def example_of_use():
