@@ -7,7 +7,7 @@ well as methods to convert the data into useful formats for further processing, 
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
 
-from typing import Union, Literal
+from typing import Union, Literal, Any
 import elabapi_python
 from tkinter import filedialog
 import os
@@ -15,8 +15,43 @@ import json
 import markdownify
 import pandas as pd
 import urllib3
+import matplotlib.pyplot as plt
 
 module_version = 0.1
+
+
+class TabularData:
+    def __init__(self, data: Union[pd.DataFrame, pd.Series, list, Any] = None, metadata: dict = None, commands=None,
+                 title: str = None, datatype: Literal["sample list", "element value", "array"] = None):
+        self._data = data
+        self._metadata = metadata
+        self.title = title
+        self.datatype = datatype
+
+        if self.title is None and "title" in self._metadata:
+            self.title = self._metadata["title"]
+        if self.datatype is None and "datatype" in self._metadata:
+            self.datatype = self._metadata["datatype"]
+
+        if commands is not None:
+            self.apply_commands(commands)
+
+    def set_data(self, data: Union[pd.DataFrame, pd.Series, list, Any]):
+        self._data = data
+
+    def get_data(self):
+        return self._data
+
+    def apply_commands(self, commands):
+        for command in commands:
+            pass
+
+    def plot(self, x: Union[str, int], y: Union[str, int], ax=None, *kwargs):
+        if ax is None:
+            ax = plt.gca()
+
+    def apply_formula_to_column(self, formula: staticmethod, column, new_column_name):
+        pass
 
 
 class MDInterpreter:
