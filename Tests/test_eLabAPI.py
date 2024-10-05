@@ -1,5 +1,7 @@
 import unittest
 
+import pandas as pd
+
 import eLabAPI
 from unittest.mock import patch
 from urllib3 import HTTPResponse
@@ -121,9 +123,9 @@ class TestBasicFunctions(unittest.TestCase):
     def test_list_from_string(self):
         strings = ["a|b|c", "0|1|-2", "a|0|?", "", "1.1|4|a"]
         expected = [["a", "b", "c"], [0, 1, -2], ["a", 0, "?"], [""], [1.1, 4, "a"]]
-        
+
         for s, e in (zip(strings, expected)):
-            self.assertEqual(eLabAPI.list_from_string(s), e)
+            self.assertEqual(eLabAPI.list_from_string(s, strict_conversion=False), e)
 
         self.assertEqual(eLabAPI.list_from_string(strings[4], separator=";"), [strings[4]])
 
@@ -138,6 +140,87 @@ class TestBasicFunctions(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             eLabAPI.try_float_conversion(invalid_input)
+
+
+class TestELNResponse(unittest.TestCase):
+    def setUp(self):
+        self.response = eLabAPI.ELNResponse()
+        self.response._response = {
+            "body": "empty body",
+            "id": "00",
+            "title": "experiment",
+            "metadata":
+                """{
+                "extra_fields": {"experimentType": {"value": "experiment"}}}"""}
+
+    def tearDown(self):
+        pass
+
+    def test_basic(self):
+        for element in self.response._metadata:
+            self.assertEqual(self.response._metadata[element], None)
+
+        self.assertEqual(self.response._tables, None)
+
+    def test_response_to_str(self):
+        str_response = self.response.response_to_str()
+
+        self.assertIn("""{
+    "body": "empty body",
+    "id": "00",
+    "title": "experiment""", str_response)
+        self.response._response = None
+
+        str_response = self.response.response_to_str()
+
+        self.assertEqual(str_response, "")
+
+    def test_tables_to_str(self):
+        pass
+
+    def test_convert_to_markdown(self):
+        with patch("markdownify.markdownify") as mock_conversion:
+            mock_conversion.return_value = "md body"
+
+            md_converted = self.response.convert_to_markdown()
+
+            self.assertEqual(md_converted, "md body")
+
+            self.response._response = None
+
+            md_converted = self.response.convert_to_markdown()
+
+            self.assertEqual(md_converted, None)
+
+            mock_conversion.assert_called_once()
+
+    def test_extract_metadata(self):
+        self.response.extract_metadata()
+
+        expected = {"id": "00", "title": "experiment", "experimentType": "experiment"}
+
+        for element in self.response._metadata:
+            if element in expected:
+                self.assertEqual(self.response._metadata[element], expected[element])
+            else:
+                self.assertEqual(self.response._metadata[element], None)
+
+    def test_extract_tables(self):
+
+        test_files = ["testfiles/tabletest_1.md", "testfiles/tabletest_2.md"]
+
+        for file in test_files:
+            with open(file, "r") as readfile:
+                response = readfile.read()
+
+            with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
+                mocked_md_body.return_value = response
+
+                self.response.extract_tables()
+                self.assertEqual(type(self.response._tables[0]), pd.DataFrame)
+
+                self.response.extract_tables(output_format="list")
+                self.assertEqual(type(self.response._tables[0]), list)
 
 
 if __name__ == "__main__":
