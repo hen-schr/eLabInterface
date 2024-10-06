@@ -143,6 +143,20 @@ class TestBasicFunctions(unittest.TestCase):
 
 
 class TestELNResponse(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not os.path.exists("testfiles/results"):
+            os.mkdir("testfiles/results")
+
+    @classmethod
+    def tearDownClass(cls):
+        # delete all file created in 'results'
+        top = "testfiles/results"
+        for root, dirs, files in os.walk(top, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+        os.rmdir(top)
+
     def setUp(self):
         self.response = eLabAPI.ELNResponse()
         self.response._response = {
@@ -218,6 +232,11 @@ class TestELNResponse(unittest.TestCase):
             else:
                 self.assertEqual(self.response._metadata[element], None)
 
+    def test_identify_experiment_type(self):
+        self.response.identify_experiment_type()
+
+        self.assertEqual(self.response._metadata["experimentType"], "experiment")
+
     def test_extract_tables(self):
 
         test_files = ["testfiles/tabletest_1.md", "testfiles/tabletest_2.md"]
@@ -234,6 +253,20 @@ class TestELNResponse(unittest.TestCase):
 
                 self.response.extract_tables(output_format="list")
                 self.assertEqual(type(self.response._tables[0]), list)
+
+    def test_save_to_csv(self):
+
+        with open("testfiles/tabletest_2.md", "r") as readfile:
+            response = readfile.read()
+
+        with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
+            mocked_md_body.return_value = response
+
+            self.response.extract_tables()
+
+        self.response.save_to_csv("testfiles/results/table_conversion.csv")
+
+        self.assertTrue(os.path.exists("testfiles/results/table_conversion.csv"))
 
 
 if __name__ == "__main__":
