@@ -176,7 +176,20 @@ class TestELNResponse(unittest.TestCase):
         self.assertEqual(str_response, "")
 
     def test_tables_to_str(self):
-        pass
+        with open("testfiles/tabletest_2.md", "r") as readfile:
+            response = readfile.read()
+
+        with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
+            mocked_md_body.return_value = response
+
+            self.response.extract_tables(reformat=False)
+
+        str_tables = self.response.tables_to_str()
+
+        with open("testfiles/tabletest_2_converted.txt", "r") as readfile:
+            reference_str = readfile.read()
+
+        self.assertEqual(str_tables, reference_str)
 
     def test_convert_to_markdown(self):
         with patch("markdownify.markdownify") as mock_conversion:
