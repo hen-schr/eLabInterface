@@ -106,7 +106,7 @@ class MDInterpreter:
 
             elif len(line) == 0 and table_started:
                 table_started = False
-                stop_index = i - 2
+                stop_index = i
                 commands.append([])
                 tables.append(lines[start_index:stop_index])
 
@@ -122,7 +122,7 @@ class MDInterpreter:
 
             elif table_started:
                 table_started = False
-                stop_index = i - 2
+                stop_index = i
                 commands.append([])
 
                 tables.append(lines[start_index:stop_index])
@@ -138,12 +138,15 @@ class MDInterpreter:
         return commands, converted_tables
 
     @staticmethod
-    def _line_list_to_array(table_lines: list[str], separator=" | "):
+    def _line_list_to_array(table_lines: list[str], separator="|"):
 
         converted_table = []
 
         for line in table_lines:
-            converted_table.append(line[2:-2].split(sep=separator))
+            split_line = line[1:-1].split(sep=separator)
+            converted_table.append([])
+            for entry in split_line:
+                converted_table[-1].append(entry.strip())
 
         return converted_table
 
@@ -290,12 +293,12 @@ class ELNResponse:
 
         self._metadata["experimentType"] = experiment_type
 
-    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes") -> list[list]:
+    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
 
         md_interpreter = MDInterpreter(md_body)
 
-        md_interpreter.extract_tables(output_format=output_format)
+        md_interpreter.extract_tables(output_format=output_format, reformat=reformat)
 
         self._tables = md_interpreter.tables
 
