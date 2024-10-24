@@ -1,4 +1,7 @@
+import pandas as pd
+
 import eLabAPI
+import matplotlib.pyplot as plt
 
 importer = eLabAPI.ELNImporter()
 
@@ -9,9 +12,9 @@ importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments
 
 # importer.ping_api()
 
-experiment = importer.request(query="HS_F020", limit=1)
+experiment = importer.request(advanced_query="id:5693", limit=1, download_attachments=True)
+
 experiment.extract_metadata()
 experiment.extract_tables(output_format="dataframes")
-experiment.save_to_csv("test.csv", index=2)
 
-print(experiment.tables_to_str())
+# print(experiment.tables_to_str())

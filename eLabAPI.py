@@ -224,7 +224,8 @@ class HelperElabftw:
 
 
 class ELNResponse:
-    def __init__(self, response=None):
+    def __init__(self, response=None, response_id=None):
+        self.id = response_id
         self._response = response
         self._metadata = {
             "id": None,
@@ -236,9 +237,14 @@ class ELNResponse:
             "status_title": None,
             "tags": None,
             "fullname": None,
-            "experimentType": None
+            "experimentType": None,
+            "userid": None,
+            "locked": None,
+            "lockedby": None,
+            "locked_at": None
         }
         self._tables = None
+        self._attachments = None
 
     def __str__(self):
         string = "ELNResponse object\n"
@@ -283,6 +289,11 @@ class ELNResponse:
             if self._metadata[element] is None and element in self._response:
                 self._metadata[element] = self._response[element]
 
+        if "id" in self._metadata:
+            self.id = self._metadata["id"]
+        else:
+            raise AttributeError("missing essential metadata entry 'id'!")
+
     def identify_experiment_type(self):
         experiment_type = "unknown"
 
@@ -301,9 +312,6 @@ class ELNResponse:
         md_interpreter.extract_tables(output_format=output_format, reformat=reformat)
 
         self._tables = md_interpreter.tables
-
-    def process_with_template(self, template=None):
-        pass
 
     def save_to_csv(self, file, index=None, separator=";"):
 
@@ -338,14 +346,15 @@ data: {"received" if self.response is not None else "none"}
 
         return string
 
-    def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False
-                ) -> Union[ELNResponse, list[ELNResponse], None]:
+    def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
+                read_attachments: bool = False, download_attachments = False) -> Union[ELNResponse, list[ELNResponse], None]:
         """
         Sends a request to the API and stores / returns the response as a ELNResponse object
         :param query: Term to search for in the entry titles
         :param limit: Maximum amount of results returned by the response
         :param advanced_query: Element-value pair (i.e. 'id:1234') to filter response
         :param allow_list: If True, a list of ELNResponse objects is returned instead of asking the user to select one
+        :param read_attachments: If True, all attached files of the ELN entry will be attached to the ELNResponse
         :return: Response for the given request
         """
         helper = HelperElabftw(self.api_key, self.url)
@@ -378,14 +387,42 @@ data: {"received" if self.response is not None else "none"}
             else:
                 selection = self.select_item_from_api_response(items_list)
 
-            response = ELNResponse(response=selection)
+            self.response = ELNResponse(response=selection)
 
-            self.response = response
+            if read_attachments or download_attachments:
+                self.response.extract_metadata()
+                attachments = self.request_uploads(self.response.id)
+                self.response._attachments = attachments
+            if download_attachments:
+                self.download_uploads()
 
-            return response
+            return self.response
 
         except urllib3.exceptions.MaxRetryError:
             return None
+
+    def request_uploads(self, identifier):
+        helper = HelperElabftw(self.api_key, self.url)
+        api_client = helper.api_client
+
+        uploadsApi = elabapi_python.UploadsApi(api_client)
+
+        uploads = uploadsApi.read_uploads("", identifier)
+
+        return uploads
+
+    def download_uploads(self, directory="Downloads/"):
+
+        helper = HelperElabftw(self.api_key, self.url)
+        api_client = helper.api_client
+
+        uploadsApi = elabapi_python.UploadsApi(api_client)
+
+        for upload in self.response._attachments:
+            upload_http = uploadsApi.read_upload("", self.response.id, upload.id, _preload_content=False, format="binary")
+
+            with open(directory + upload.real_name, "wb") as writefile:
+                writefile.write(upload_http.data)
 
     def select_item_from_api_response(self, response_list):
 
