@@ -247,6 +247,11 @@ class ELNResponse:
         self._tables = None
         self._attachments = None
         self._download_directory = None
+        self.log = ""
+
+        self._log("created ELNResponse instance", "PRC")
+        if response is not None:
+            self.extract_metadata()
 
     def __str__(self):
         string = "ELNResponse object\n"
@@ -254,6 +259,37 @@ class ELNResponse:
             string += f"\t{entry}: {self._metadata[entry]}\n" if self._metadata[entry] is not None else ""
 
         return string
+
+    def get_attachments(self):
+        return self._attachments
+
+    def set_metadata(self, data: dict):
+        self._metadata = data
+        self._log("original metadata was overwritten by user", "WRN")
+
+    def add_metadata(self, element: str, value: Any):
+
+        if element in self._metadata:
+            self._log(f"metadata element '{element}' was overwritten by user", "WRN")
+
+        self._metadata[element] = value
+
+    def get_metadata(self, element: str=None):
+        if element is None:
+            return self._metadata
+        elif element in self._metadata:
+            return self._metadata[element]
+        else:
+            raise AttributeError(f"ELNResponse has not metadata element '{element}'")
+
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN"]=None) -> None:
+        """
+        Logs important events of the API communication and data processing
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning)
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
 
     def response_to_str(self):
         if self._response is not None:
@@ -297,6 +333,9 @@ class ELNResponse:
             raise AttributeError("missing essential metadata entry 'id'!")
 
     def identify_experiment_type(self):
+        if self._metadata["experimentType"] is not None:
+            return
+
         experiment_type = "unknown"
 
         metadata = json.loads(self._response["metadata"])
@@ -305,6 +344,9 @@ class ELNResponse:
             experiment_type = metadata["extra_fields"]["experimentType"]["value"]
 
         self._metadata["experimentType"] = experiment_type
+
+        self._log(f"identified experiment type: {experiment_type}", "PRC")
+
 
     def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
@@ -451,7 +493,7 @@ data: {"received" if self.response is not None else "none"}
 
         uploadsApi = elabapi_python.UploadsApi(api_client)
 
-        for upload in self.response._attachments:
+        for upload in self.response.get_attachments():
             upload_http = uploadsApi.read_upload("", self.response.id, upload.id, _preload_content=False, format="binary")
 
             with open(directory + upload.real_name, "wb") as writefile:
@@ -461,7 +503,7 @@ data: {"received" if self.response is not None else "none"}
 
         self.response._download_directory = download_directory
 
-        self._log(f"wrote {len(self.response._attachments)} uploads to directory: {download_directory}", "FIL")
+        self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {download_directory}", "FIL")
 
     def select_item_from_api_response(self, response_list):
 
