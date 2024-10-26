@@ -347,6 +347,9 @@ data: {"received" if self.response is not None else "none"}
 
         return string
 
+    def _log(self, message, category: Literal["COM", "PRC", "LOC"]=None):
+        self.log += f"""\n{category if category is not None else ""} {message}"""
+
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
                 read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
                 ) -> Union[ELNResponse, list[ELNResponse], urllib3.response.HTTPResponse, None]:
@@ -368,13 +371,18 @@ data: {"received" if self.response is not None else "none"}
 
         try:
             if query is not None:
+                self._log(f"requesting data: q={query}, limit={limit}", "COM")
                 items_list = items.read_items(_preload_content=False, limit=limit,
                                               q=query)
             elif advanced_query is not None:
+                self._log(f"requesting data: q={advanced_query}, limit={limit}", "COM")
                 items_list = items.read_items(_preload_content=False, limit=limit,
                                               extended=advanced_query.replace(" ", ""))
             else:
+                self._log(f"requesting data: limit={limit}", "COM")
                 items_list = items.read_items(_preload_content=False, limit=limit)
+
+            self._log("received response for request", "COM")
 
             if return_http_response:
                 self.response = items_list
