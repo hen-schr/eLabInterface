@@ -30,7 +30,9 @@ class TestELNImporter(unittest.TestCase):
                 """{
                 "extra_fields": {"experimentType": {"value": "experiment"}}}"""
         }
-        self.simple_http_response = HTTPResponse(json.dumps(self.simple_response).encode("utf-8"))
+        self.simple_http_response = HTTPResponse(("[" + json.dumps(self.simple_response) + "]").encode("utf-8"))
+
+        self.uploads_response = [{"real_name": "test.csv"}, {"real_name": "test2.xml"}]
 
     def tearDown(self):
         pass
@@ -40,6 +42,18 @@ class TestELNImporter(unittest.TestCase):
         self.assertEqual(self.importer.working, None)
         self.assertEqual(self.importer.response, None)
         self.assertEqual(self.importer.permissions, "read only")
+
+    def test_log(self):
+        message = "test log message"
+        category = "WRN"
+
+        self.importer._log(message, category)
+
+        last_log_message = self.importer.log.split("\n")[-1].split("\t")[-1]
+        last_log_cat = self.importer.log.split("\n")[-1].split("\t")[-2]
+
+        self.assertEqual(message, last_log_message)
+        self.assertEqual(category, last_log_cat)
 
     def test_request(self):
 
@@ -67,6 +81,16 @@ class TestELNImporter(unittest.TestCase):
 
             self.assertEqual(response[0]._response, {"dummy": "data"})
             self.assertEqual(response[1]._response, {"dummy2": "data2"})
+
+    def test_request_uploads(self):
+        with patch("elabapi_python.UploadsApi.read_uploads") as mocked_api_response:
+            mocked_api_response.return_value = self.uploads_response
+
+            uploads = self.importer.request_uploads("arbitrary_identifier")
+
+            self.assertEqual(("", "arbitrary_identifier"), mocked_api_response.call_args.args)
+
+            self.assertEqual(self.uploads_response, uploads)
 
     def test_select_item_from_api_response(self):
         with patch("builtins.input") as mocked_selection:
