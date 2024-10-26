@@ -3,22 +3,31 @@ import unittest
 import json
 
 import pandas as pd
+from elabapi_python import Upload
 
 import eLabAPI
 from unittest.mock import patch
-from urllib3 import HTTPResponse
+from urllib3 import HTTPResponse, BaseHTTPResponse
 import os
+
+from eLabAPI import ELNResponse
 
 
 class TestELNImporter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        pass
+        if not os.path.exists("testfiles/downloads"):
+            os.mkdir("testfiles/downloads")
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        # delete all file created in 'downloads'
+        top = "testfiles/downloads"
+        for root, dirs, files in os.walk(top, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+        os.rmdir(top)
 
     def setUp(self):
         self.importer = eLabAPI.ELNImporter(silent=True)
@@ -33,6 +42,8 @@ class TestELNImporter(unittest.TestCase):
         self.simple_http_response = HTTPResponse(("[" + json.dumps(self.simple_response) + "]").encode("utf-8"))
 
         self.uploads_response = [{"real_name": "test.csv"}, {"real_name": "test2.xml"}]
+
+        self.uploads_response_obj = [Upload(id=1, real_name="test.csv"), Upload(id=2, real_name="test2.xml")]
 
     def tearDown(self):
         pass
@@ -83,6 +94,10 @@ class TestELNImporter(unittest.TestCase):
             self.assertEqual(response[1]._response, {"dummy2": "data2"})
 
     def test_request_uploads(self):
+
+        # ELNResponse needs to be attached manually to the importer, as no API request was mocked
+        self.importer.response = ELNResponse()
+
         with patch("elabapi_python.UploadsApi.read_uploads") as mocked_api_response:
             mocked_api_response.return_value = self.uploads_response
 
@@ -91,6 +106,27 @@ class TestELNImporter(unittest.TestCase):
             self.assertEqual(("", "arbitrary_identifier"), mocked_api_response.call_args.args)
 
             self.assertEqual(self.uploads_response, uploads)
+
+    def test_download_uploads(self):
+
+        # ELNResponse needs to be attached manually to the importer, as no API request was mocked
+        self.importer.response = ELNResponse()
+
+        with patch("eLabAPI.ELNResponse.get_attachments") as mocked_attachments:
+            mocked_attachments.return_value = self.uploads_response_obj
+
+            with patch("elabapi_python.UploadsApi.read_upload") as mocked_api_response:
+                mocked_api_response.return_value = HTTPResponse(b"0;1\n2;3\n;4;5")
+
+                self.importer.download_uploads("testfiles/downloads/")
+
+        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[0].real_name))
+        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[1].real_name))
+
+        with open("testfiles/downloads/" + self.uploads_response_obj[0].real_name, "r") as readfile:
+            file_content = readfile.read()
+
+        self.assertEqual("0;1\n2;3\n;4;5", file_content)
 
     def test_select_item_from_api_response(self):
         with patch("builtins.input") as mocked_selection:
