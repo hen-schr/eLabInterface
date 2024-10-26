@@ -426,11 +426,13 @@ class ELNResponse:
 
     def save_to_csv(self, file, index=None, separator=";"):
 
+        file = file.replace(".csv", "")
+
         if index is None:
-            for table in self._tables:
-                table.to_csv(file, encoding="utf-8", sep=separator)
+            for i, table in enumerate(self._tables):
+                table.to_csv(f"{file}-{i+1}.csv", encoding="utf-8", sep=separator)
         else:
-            self._tables[index].to_csv(file, encoding="utf-8", sep=separator)
+            self._tables[index].to_csv(file + ".csv", encoding="utf-8", sep=separator)
 
 
 class ELNImporter:
