@@ -242,7 +242,8 @@ class ELNResponse:
             "userid": None,
             "locked": None,
             "lockedby": None,
-            "locked_at": None
+            "locked_at": None,
+            "requestTimeStamp": None
         }
         self._tables = None
         self._attachments = None
@@ -338,7 +339,17 @@ class ELNResponse:
 
         experiment_type = "unknown"
 
-        metadata = json.loads(self._response["metadata"])
+        if "metadata" in self._response:
+            metadata = json.loads(self._response["metadata"])
+        else:
+            self._log("could not find metadata in entry, experiment entry might be incomplete", "WRN")
+            return
+
+
+        if "extra_fields" not in metadata:
+            self._log("could not find extra fields in metadata, experiment entry might be incomplete",
+                      "WRN")
+            return
 
         if "experimentType" in metadata["extra_fields"]:
             experiment_type = metadata["extra_fields"]["experimentType"]["value"]
@@ -451,13 +462,17 @@ data: {"received" if self.response is not None else "none"}
                         response_list.append(ELNResponse(item))
                     return response_list
 
-                if len(items_list) == 1:
+                if len(items_list) == 1 and type(items_list) is list:
                     selection = items_list[0]
+                elif type(items_list) is dict:
+                    selection = items_list
                 else:
                     selection = self.select_item_from_api_response(items_list)
 
                 self.response = ELNResponse(response=selection)
                 self._log("successfully created ELNResponse object", "PRC")
+
+                self.response.add_metadata("requestTimeStamp", datetime.strftime(datetime.now(), "%y-%m-%d %H:%M:%S"))
 
 
                 if read_uploads or download_uploads:
