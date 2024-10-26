@@ -464,8 +464,6 @@ data: {"received" if self.response is not None else "none"}
 
                 if len(items_list) == 1 and type(items_list) is list:
                     selection = items_list[0]
-                elif type(items_list) is dict:
-                    selection = items_list
                 else:
                     selection = self.select_item_from_api_response(items_list)
 
