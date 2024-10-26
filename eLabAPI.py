@@ -8,7 +8,7 @@ Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
 from datetime import datetime
 from msilib import datasizemask
-from typing import Union, Literal, Any
+from typing import Union, Literal, Any, LiteralString
 import elabapi_python
 from tkinter import filedialog
 import os
@@ -225,7 +225,7 @@ class HelperElabftw:
 
 
 class ELNResponse:
-    def __init__(self, response=None, response_id=None):
+    def __init__(self, response=None, response_id=None, silent=False, debug=False):
         self.id = response_id
         self._response = response
         self._metadata = {
@@ -249,6 +249,8 @@ class ELNResponse:
         self._attachments = None
         self._download_directory = None
         self.log = ""
+        self.silent = silent
+        self.debug = debug
 
         self._log("created ELNResponse instance", "PRC")
         if response is not None:
@@ -283,14 +285,23 @@ class ELNResponse:
         else:
             raise AttributeError(f"ELNResponse has not metadata element '{element}'")
 
-    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN"]=None) -> None:
+    def toggle_debug(self, state: bool = None):
+        if state is None:
+            self.debug = not self.debug
+        else:
+            self.debug = state
+
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
-        Logs important events of the API communication and data processing
+        Logs important events of data processing and other activities
         :param message: Message to add to the log, will be automatically timestamped
-        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning)
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
         """
         self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self.silent and category == "USR") or self.debug:
+            print(message)
 
     def response_to_str(self):
         if self._response is not None:
@@ -378,13 +389,24 @@ class ELNResponse:
 
 
 class ELNImporter:
-    def __init__(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only"):
+    def __init__(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
+                 silent: bool = False, debug=False):
+        """
+        Handles importing ELN entries from eLabFTW by using the python API.
+        :param api_key: Key to access the API
+        :param url: URL to access the API
+        :param permissions: Permissions of the API
+        :param silent: If True, no user messages will be displayed in the console
+        :param debug: If True, all log messages will also be printed in the console
+        """
         self.api_key = api_key
         self.url = url
         self.permissions = permissions
         self.response = None
         self.working = None
         self.log = ""
+        self.silent = silent
+        self.debug = debug
 
     def __str__(self):
         status = "unknown"
@@ -402,14 +424,18 @@ data: {"received" if self.response is not None else "none"}
 
         return string
 
-    def _log(self, message: str, category: Literal["COM", "PRC", "FIL", "ERR", "WRN"]=None) -> None:
+    def _log(self, message: str, category: Literal["COM", "PRC", "FIL", "ERR", "WRN", "USR"]=None) -> None:
         """
         Logs important events of the API communication and data processing
         :param message: Message to add to the log, will be automatically timestamped
-        :param category: COM (communication), PRC (processing), FIL (file system related), ERR (error), WRN (warning)
+        :param category: COM (communication), PRC (processing), FIL (file system related), ERR (error), WRN (warning),
+        USR (user message)
         """
         self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self.silent and category == "USR") or self.debug:
+            print(message)
 
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
                 read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
@@ -520,10 +546,10 @@ data: {"received" if self.response is not None else "none"}
 
     def select_item_from_api_response(self, response_list):
 
-        print("Received multiple experiments from request:\n")
+        self._log("Received multiple experiments from request:", "USR")
 
         for i, item in enumerate(response_list):
-            print("\t", i, item["title"])
+            self._log(f"""\t{i} {item["title"]}""", "USR")
 
         while True:
             user_selection = input("\nSelect experiment from list: ")
@@ -536,17 +562,16 @@ data: {"received" if self.response is not None else "none"}
 
         return selected_response
 
-    @staticmethod
-    def check_user_selection(user_selection, selection_list):
+    def check_user_selection(self, user_selection, selection_list):
         try:
             selected_index = int(user_selection.replace(" ", ""))
             selection = selection_list[selected_index]
             return selected_index
         except ValueError:
-            print("Invalid input!")
+            self._log("Invalid input!", "USR")
             return None
         except IndexError:
-            print("Invalid input!")
+            self._log("Invalid input!", "USR")
             return None
 
     def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
