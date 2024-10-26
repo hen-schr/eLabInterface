@@ -21,7 +21,7 @@ class TestELNImporter(unittest.TestCase):
         pass
 
     def setUp(self):
-        self.importer = eLabAPI.ELNImporter()
+        self.importer = eLabAPI.ELNImporter(silent=True)
         self.simple_response = {
             "body": "empty body",
             "id": "00",
@@ -192,7 +192,7 @@ class TestELNResponse(unittest.TestCase):
         os.rmdir(top)
 
     def setUp(self):
-        self.response = eLabAPI.ELNResponse()
+        self.response = eLabAPI.ELNResponse(silent=True)
         self.response._response = {
             "body": "empty body",
             "id": "00",
