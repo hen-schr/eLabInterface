@@ -339,11 +339,23 @@ class ELNResponse:
 
         return string
 
-    def convert_to_markdown(self) -> Union[str, None]:
+    def convert_to_markdown(self, remove_backslashes=True) -> Union[str, None]:
+        """
+        Converts HTML to Markdown.
+        :param remove_backslashes: If True, backslashes that appear as an artifact of the conversion are removed -
+        this should be disabled if the original HTML document contains backslashes to begin with
+        :return: The converted Markdown text
+        """
         if self._response is None:
             self._log("No response available to convert to markdown - request data first!", "USR")
             return None
-        md_body = markdownify.markdownify(self._response["body"])
+        md_body = markdownify.markdownify(self._response["body"], heading_style="ATX", strip=["strong", "a", "c"],
+                                          newline_style="BACKSLASH")
+
+        # the converter adds backslashes in some edge cases to enable conversion back to html
+        # for the purposes of this package, this is not needed and they are removed
+        if remove_backslashes:
+            md_body = md_body.replace("\\", "")
 
         return md_body
 
