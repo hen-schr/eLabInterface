@@ -1,5 +1,6 @@
 import csv
 import unittest
+import json
 
 import pandas as pd
 
@@ -21,7 +22,15 @@ class TestELNImporter(unittest.TestCase):
 
     def setUp(self):
         self.importer = eLabAPI.ELNImporter()
-        self.simple_http_response = HTTPResponse("""[{"dummy": "data"}]""".encode("utf-8"))
+        self.simple_response = {
+            "body": "empty body",
+            "id": "00",
+            "title": "experiment",
+            "metadata":
+                """{
+                "extra_fields": {"experimentType": {"value": "experiment"}}}"""
+        }
+        self.simple_http_response = HTTPResponse(json.dumps(self.simple_response).encode("utf-8"))
 
     def tearDown(self):
         pass
@@ -41,7 +50,7 @@ class TestELNImporter(unittest.TestCase):
 
             response = self.importer.request()
 
-            self.assertEqual(response._response, {"dummy": "data"})
+            self.assertEqual(self.simple_response, response._response)
 
             # request returns nothing
             mocked_api_response.return_value = HTTPResponse("""[]""".encode("utf-8"))
@@ -105,7 +114,7 @@ class TestELNImporter(unittest.TestCase):
         os.remove(dummy_file)
 
     def test_clear_response(self):
-        self.importer.response = eLabAPI.ELNResponse("dummy")
+        self.importer.response = eLabAPI.ELNResponse(self.simple_http_response.json())
 
         self.importer.clear_response()
 
