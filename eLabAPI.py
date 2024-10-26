@@ -275,6 +275,12 @@ class ELNResponse:
         string = "ELNResponse object\n"
         for entry in self._metadata:
             string += f"\t{entry}: {self._metadata[entry]}\n" if self._metadata[entry] is not None else ""
+        string += f"""\tbody: {len(self._response["body"].encode("utf-8"))} bytes\n"""
+
+        string += f"""\tuploads: {len(self._attachments) if self._attachments is not None else "none"}\n"""
+
+        if self._download_directory is not None:
+            string += f"""\tlocal upload directory: {self._download_directory}\n"""
 
         return string
 
@@ -299,6 +305,15 @@ class ELNResponse:
             return self._metadata[element]
         else:
             raise AttributeError(f"ELNResponse has not metadata element '{element}'")
+
+    def list_uploads(self):
+        if self._attachments is None:
+            return None
+        string = "Attached uploads:\n"
+        for upload in self._attachments:
+            string += "\t" + upload.real_name + "\n"
+
+        self._log(string, "USR")
 
     def toggle_debug(self, state: bool = None):
         if state is None:
