@@ -329,6 +329,7 @@ class ELNImporter:
         self.permissions = permissions
         self.response = None
         self.working = None
+        self.log = ""
 
     def __str__(self):
         status = "unknown"
@@ -347,14 +348,17 @@ data: {"received" if self.response is not None else "none"}
         return string
 
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
-                read_attachments: bool = False, download_attachments = False) -> Union[ELNResponse, list[ELNResponse], None]:
+                read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
+                ) -> Union[ELNResponse, list[ELNResponse], urllib3.response.HTTPResponse, None]:
         """
-        Sends a request to the API and stores / returns the response as a ELNResponse object
+        Sends a request to the API and stores / returns the response
         :param query: Term to search for in the entry titles
         :param limit: Maximum amount of results returned by the response
         :param advanced_query: Element-value pair (i.e. 'id:1234') to filter response
         :param allow_list: If True, a list of ELNResponse objects is returned instead of asking the user to select one
-        :param read_attachments: If True, all attached files of the ELN entry will be attached to the ELNResponse
+        :param read_uploads: If True, all attached files of the ELN entry will be attached to the ELNResponse
+        :param download_uploads: If True, all attachments will be downloaded
+        :param return_http_response: If True, raw HTTPResponse will be returned instead of an ELNResponse
         :return: Response for the given request
         """
         helper = HelperElabftw(self.api_key, self.url)
@@ -372,29 +376,34 @@ data: {"received" if self.response is not None else "none"}
             else:
                 items_list = items.read_items(_preload_content=False, limit=limit)
 
-            items_list = items_list.json()
+            if return_http_response:
+                self.response = items_list
 
-            if items_list is None or items_list == []:
-                return None
-            elif allow_list:
-                response_list = []
-                for item in items_list:
-                    response_list.append(ELNResponse(item))
-                return response_list
-
-            if len(items_list) == 1:
-                selection = items_list[0]
             else:
-                selection = self.select_item_from_api_response(items_list)
 
-            self.response = ELNResponse(response=selection)
+                items_list = items_list.json()
 
-            if read_attachments or download_attachments:
-                self.response.extract_metadata()
-                attachments = self.request_uploads(self.response.id)
-                self.response._attachments = attachments
-            if download_attachments:
-                self.download_uploads()
+                if items_list is None or items_list == []:
+                    return None
+                elif allow_list:
+                    response_list = []
+                    for item in items_list:
+                        response_list.append(ELNResponse(item))
+                    return response_list
+
+                if len(items_list) == 1:
+                    selection = items_list[0]
+                else:
+                    selection = self.select_item_from_api_response(items_list)
+
+                self.response = ELNResponse(response=selection)
+
+                if read_uploads or download_uploads:
+                    self.response.extract_metadata()
+                    attachments = self.request_uploads(self.response.id)
+                    self.response._attachments = attachments
+                if download_uploads:
+                    self.download_uploads()
 
             return self.response
 
