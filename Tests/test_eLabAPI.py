@@ -9,6 +9,7 @@ import eLabAPI
 from unittest.mock import patch
 from urllib3 import HTTPResponse, BaseHTTPResponse
 import os
+import urllib3
 
 from eLabAPI import ELNResponse
 
@@ -99,34 +100,31 @@ class TestELNImporter(unittest.TestCase):
         self.importer.response = ELNResponse()
 
         with patch("elabapi_python.UploadsApi.read_uploads") as mocked_api_response:
-            mocked_api_response.return_value = self.uploads_response
+            mocked_api_response.return_value = self.uploads_response_obj
 
             uploads = self.importer.request_uploads("arbitrary_identifier")
 
             self.assertEqual(("", "arbitrary_identifier"), mocked_api_response.call_args.args)
 
-            self.assertEqual(self.uploads_response, uploads)
+            self.assertEqual(self.uploads_response_obj, uploads)
 
     def test_download_uploads(self):
 
         # ELNResponse needs to be attached manually to the importer, as no API request was mocked
         self.importer.response = ELNResponse()
+        self.importer.response._attachments = self.uploads_response_obj
 
-        with patch("eLabAPI.ELNResponse.get_attachments") as mocked_attachments:
-            mocked_attachments.return_value = self.uploads_response_obj
+        with patch("elabapi_python.UploadsApi.read_upload") as mocked_api_response:
+            mocked_api_response.return_value = urllib3.response.HTTPResponse(body=b"0;1\n2;3\n;4;5")
 
-            with patch("elabapi_python.UploadsApi.read_upload") as mocked_api_response:
-                mocked_api_response.return_value = HTTPResponse(b"0;1\n2;3\n;4;5")
-
-                self.importer.download_uploads("testfiles/downloads/")
-
-        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[0].real_name))
-        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[1].real_name))
+            self.importer.download_uploads("testfiles/downloads/")
 
         with open("testfiles/downloads/" + self.uploads_response_obj[0].real_name, "r") as readfile:
             file_content = readfile.read()
 
         self.assertEqual("0;1\n2;3\n;4;5", file_content)
+        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[0].real_name))
+        self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[1].real_name))
 
     def test_select_item_from_api_response(self):
         with patch("builtins.input") as mocked_selection:
