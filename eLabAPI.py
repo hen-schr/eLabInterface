@@ -6,7 +6,8 @@ well as methods to convert the data into useful formats for further processing, 
 © 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
-
+from datetime import datetime
+from msilib import datasizemask
 from typing import Union, Literal, Any
 import elabapi_python
 from tkinter import filedialog
@@ -245,6 +246,7 @@ class ELNResponse:
         }
         self._tables = None
         self._attachments = None
+        self._download_directory = None
 
     def __str__(self):
         string = "ELNResponse object\n"
@@ -347,8 +349,14 @@ data: {"received" if self.response is not None else "none"}
 
         return string
 
-    def _log(self, message, category: Literal["COM", "PRC", "LOC"]=None):
-        self.log += f"""\n{category if category is not None else ""} {message}"""
+    def _log(self, message: str, category: Literal["COM", "PRC", "FIL", "ERR", "WRN"]=None) -> None:
+        """
+        Logs important events of the API communication and data processing
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: COM (communication), PRC (processing), FIL (file system related), ERR (error), WRN (warning)
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
 
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
                 read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
@@ -389,6 +397,8 @@ data: {"received" if self.response is not None else "none"}
 
             else:
 
+                self._log("converting HTTPResponse...", "PRC")
+
                 items_list = items_list.json()
 
                 if items_list is None or items_list == []:
@@ -405,6 +415,8 @@ data: {"received" if self.response is not None else "none"}
                     selection = self.select_item_from_api_response(items_list)
 
                 self.response = ELNResponse(response=selection)
+                self._log("successfully created ELNResponse object", "PRC")
+
 
                 if read_uploads or download_uploads:
                     self.response.extract_metadata()
@@ -422,9 +434,13 @@ data: {"received" if self.response is not None else "none"}
         helper = HelperElabftw(self.api_key, self.url)
         api_client = helper.api_client
 
+        self._log(f"requesting uploads for experiment with id {identifier}", "COM")
+
         uploadsApi = elabapi_python.UploadsApi(api_client)
 
         uploads = uploadsApi.read_uploads("", identifier)
+
+        self._log(f"received {len(uploads)} uploads", "COM")
 
         return uploads
 
@@ -440,6 +456,12 @@ data: {"received" if self.response is not None else "none"}
 
             with open(directory + upload.real_name, "wb") as writefile:
                 writefile.write(upload_http.data)
+
+        download_directory = os.path.abspath(directory)
+
+        self.response._download_directory = download_directory
+
+        self._log(f"wrote {len(self.response._attachments)} uploads to directory: {download_directory}", "FIL")
 
     def select_item_from_api_response(self, response_list):
 
@@ -473,7 +495,7 @@ data: {"received" if self.response is not None else "none"}
             return None
 
     def configure_api(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
-                      feedback=True):
+                      feedback=True, verify_communication=True):
         if api_key is not None:
             self.api_key = api_key
         if url is not None:
@@ -481,18 +503,25 @@ data: {"received" if self.response is not None else "none"}
 
         self.permissions = permissions
 
-        ping = self.ping_api()
+        self._log(f"""set API configuration: url={self.url}, api key={"yes" if self.api_key is not None else "no"}"""
+                 + f""", permissions={self.permissions}""", "COM")
 
-        if ping and feedback:
-            print("API was successfully configured")
-            return True
-        elif ping and not feedback:
-            return True
-        elif not ping and feedback:
-            print("Could not connect to API using the given configurations")
-            return False
+        if verify_communication:
+
+            ping = self.ping_api()
+
+            if ping and feedback:
+                self._log("API was successfully configured", "COM")
+                return True
+            elif ping and not feedback:
+                return True
+            elif not ping and feedback:
+                self._log("Could not connect to API using the given configurations", "ERR")
+                return False
+            else:
+                return False
         else:
-            return False
+            return None
 
     def attach_api_key_from_file(self, file=None):
         if file is None:
@@ -503,6 +532,8 @@ data: {"received" if self.response is not None else "none"}
             with open(file, "r") as readfile:
                 self.api_key = readfile.read()
 
+            self._log(f"read API key from file: {file}", "FIL")
+
     def clear_response(self):
         self.response = None
 
@@ -511,6 +542,9 @@ data: {"received" if self.response is not None else "none"}
         Test if the API could be reached with the defined configuration.
         :return: True if communication to API was successful, False if not
         """
+
+        self._log("sending test request", "COM")
+
         test_response = self.request(limit=1)
 
         if test_response is not None:
