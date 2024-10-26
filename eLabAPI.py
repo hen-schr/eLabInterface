@@ -356,8 +356,9 @@ class ELNResponse:
 
         if "id" in self._metadata and self.id is None:
             self.id = self._metadata["id"]
-        else:
+        elif "id" not in self._metadata and self.id is None:
             raise AttributeError("missing essential metadata entry 'id'!")
+
 
     def identify_experiment_type(self):
         if self._metadata["experimentType"] is not None:
