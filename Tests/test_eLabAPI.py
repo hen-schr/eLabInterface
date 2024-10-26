@@ -332,12 +332,12 @@ class TestELNResponse(unittest.TestCase):
 
             self.response.extract_tables()
 
-        self.response.save_to_csv("testfiles/results/table_conversion.csv", separator=";")
+        self.response.save_to_csv("testfiles/results/table_conversion.csv", index=0, separator=";")
 
         self.assertTrue(os.path.exists("testfiles/results/table_conversion.csv"))
 
         csv_content = pd.read_csv("testfiles/results/table_conversion.csv",delimiter=";")
-        self.assertEqual(csv_content.shape, (3, 3))
+        self.assertEqual(csv_content.shape, (2, 4))
 
 
 if __name__ == "__main__":
