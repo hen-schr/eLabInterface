@@ -7,8 +7,7 @@ well as methods to convert the data into useful formats for further processing, 
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
 from datetime import datetime
-from msilib import datasizemask
-from typing import Union, Literal, Any, LiteralString
+from typing import Union, Literal, Any
 import elabapi_python
 from tkinter import filedialog
 import os
@@ -17,6 +16,7 @@ import markdownify
 import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
+from elabapi_python import Upload
 
 module_version = 0.1
 
@@ -216,7 +216,7 @@ class HelperElabftw:
         self.configuration.api_key['api_key'] = api_key
         self.configuration.api_key_prefix['api_key'] = 'Authorization'
         self.configuration.host = api_host_url
-        self.configuration.debug = False
+        self.configuration._debug = False
         self.configuration.verify_ssl = True
         # create an instance of the API class
         self.api_client = elabapi_python.ApiClient(self.configuration)
@@ -225,9 +225,27 @@ class HelperElabftw:
 
 
 class ELNResponse:
-    def __init__(self, response=None, response_id=None, silent=False, debug=False):
+    def __init__(self, response: dict=None, response_id: Union[int, str] = None,
+                 silent: bool = False, debug: bool = False):
+        """
+        A general container for a response received from the API
+        :param response: The response (in dict format) that was received from the API
+        :param response_id: The experiment id, is extracted from the metadata attribute for easier access if not specified upon creation
+        :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
+        :param debug: If True, all log messages will be printed in the console
+        """
+        # most basic properties of this class
         self.id = response_id
         self._response = response
+
+        # for logging and debugging
+        self.log = ""
+        self._silent = silent
+        self._debug = debug
+
+        self._log("created ELNResponse instance", "PRC")
+
+        #
         self._metadata = {
             "id": None,
             "title": None,
@@ -245,14 +263,11 @@ class ELNResponse:
             "locked_at": None,
             "requestTimeStamp": None
         }
+
         self._tables = None
         self._attachments = None
         self._download_directory = None
-        self.log = ""
-        self.silent = silent
-        self.debug = debug
 
-        self._log("created ELNResponse instance", "PRC")
         if response is not None:
             self.extract_metadata()
 
@@ -287,9 +302,9 @@ class ELNResponse:
 
     def toggle_debug(self, state: bool = None):
         if state is None:
-            self.debug = not self.debug
+            self._debug = not self._debug
         else:
-            self.debug = state
+            self._debug = state
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
@@ -300,7 +315,7 @@ class ELNResponse:
         self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
 
-        if (not self.silent and category == "USR") or self.debug:
+        if (not self._silent and category == "USR") or self._debug:
             print(message)
 
     def response_to_str(self):
@@ -326,7 +341,7 @@ class ELNResponse:
 
     def convert_to_markdown(self) -> Union[str, None]:
         if self._response is None:
-            print("No response available to convert to markdown - request data first!")
+            self._log("No response available to convert to markdown - request data first!", "USR")
             return None
         md_body = markdownify.markdownify(self._response["body"])
 
@@ -339,7 +354,7 @@ class ELNResponse:
             if self._metadata[element] is None and element in self._response:
                 self._metadata[element] = self._response[element]
 
-        if "id" in self._metadata:
+        if "id" in self._metadata and self.id is None:
             self.id = self._metadata["id"]
         else:
             raise AttributeError("missing essential metadata entry 'id'!")
@@ -379,6 +394,8 @@ class ELNResponse:
 
         self._tables = md_interpreter.tables
 
+        return self._tables
+
     def save_to_csv(self, file, index=None, separator=";"):
 
         if index is None:
@@ -389,14 +406,15 @@ class ELNResponse:
 
 
 class ELNImporter:
-    def __init__(self, api_key=None, url=None, permissions: Literal["read only", "read and write"] = "read only",
-                 silent: bool = False, debug=False):
+    def __init__(self, api_key: str = None, url: str = None,
+                 permissions: Literal["read only", "read and write"] = "read only",
+                 silent: bool = False, debug: bool = False):
         """
         Handles importing ELN entries from eLabFTW by using the python API.
         :param api_key: Key to access the API
         :param url: URL to access the API
         :param permissions: Permissions of the API
-        :param silent: If True, no user messages will be displayed in the console
+        :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
         :param debug: If True, all log messages will also be printed in the console
         """
         self.api_key = api_key
@@ -459,26 +477,26 @@ data: {"received" if self.response is not None else "none"}
         try:
             if query is not None:
                 self._log(f"requesting data: q={query}, limit={limit}", "COM")
-                items_list = items.read_items(_preload_content=False, limit=limit,
+                raw_items_list = items.read_items(_preload_content=False, limit=limit,
                                               q=query)
             elif advanced_query is not None:
                 self._log(f"requesting data: q={advanced_query}, limit={limit}", "COM")
-                items_list = items.read_items(_preload_content=False, limit=limit,
+                raw_items_list = items.read_items(_preload_content=False, limit=limit,
                                               extended=advanced_query.replace(" ", ""))
             else:
                 self._log(f"requesting data: limit={limit}", "COM")
-                items_list = items.read_items(_preload_content=False, limit=limit)
+                raw_items_list = items.read_items(_preload_content=False, limit=limit)
 
             self._log("received response for request", "COM")
 
             if return_http_response:
-                self.response = items_list
+                self.response = raw_items_list
 
             else:
 
                 self._log("converting HTTPResponse...", "PRC")
 
-                items_list = items_list.json()
+                items_list: list[dict] = raw_items_list.json()
 
                 if items_list is None or items_list == []:
                     return None
@@ -501,8 +519,8 @@ data: {"received" if self.response is not None else "none"}
 
                 if read_uploads or download_uploads:
                     self.response.extract_metadata()
-                    attachments = self.request_uploads(self.response.id)
-                    self.response._attachments = attachments
+                    self.request_uploads(self.response.id)
+
                 if download_uploads:
                     self.download_uploads()
 
@@ -511,7 +529,7 @@ data: {"received" if self.response is not None else "none"}
         except urllib3.exceptions.MaxRetryError:
             return None
 
-    def request_uploads(self, identifier):
+    def request_uploads(self, identifier) -> list[Upload]:
         helper = HelperElabftw(self.api_key, self.url)
         api_client = helper.api_client
 
@@ -519,13 +537,15 @@ data: {"received" if self.response is not None else "none"}
 
         uploadsApi = elabapi_python.UploadsApi(api_client)
 
-        uploads = uploadsApi.read_uploads("", identifier)
+        uploads: list[Upload] = uploadsApi.read_uploads("", identifier)
+
+        self.response._attachments = uploads
 
         self._log(f"received {len(uploads)} uploads", "COM")
 
         return uploads
 
-    def download_uploads(self, directory="Downloads/"):
+    def download_uploads(self, directory="Downloads/") -> None:
 
         helper = HelperElabftw(self.api_key, self.url)
         api_client = helper.api_client
@@ -533,7 +553,8 @@ data: {"received" if self.response is not None else "none"}
         uploadsApi = elabapi_python.UploadsApi(api_client)
 
         for upload in self.response.get_attachments():
-            upload_http = uploadsApi.read_upload("", self.response.id, upload.id, _preload_content=False, format="binary")
+            upload_http: urllib3.response.HTTPResponse = (
+                uploadsApi.read_upload("", self.response.id, upload.id, _preload_content=False, format="binary"))
 
             with open(directory + upload.real_name, "wb") as writefile:
                 writefile.write(upload_http.data)
