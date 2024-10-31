@@ -17,6 +17,7 @@ import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
 from elabapi_python import Upload
+from scipy.optimize import direct
 
 module_version = 0.1
 
@@ -287,6 +288,9 @@ class ELNResponse:
     def get_attachments(self):
         return self._attachments
 
+    def get_download_directory(self):
+        return self._download_directory
+
     def set_metadata(self, data: dict):
         self._metadata = data
         self._log("original metadata was overwritten by user", "WRN")
@@ -304,7 +308,7 @@ class ELNResponse:
         elif element in self._metadata:
             return self._metadata[element]
         else:
-            raise AttributeError(f"ELNResponse has not metadata element '{element}'")
+            raise AttributeError(f"ELNResponse has no metadata element '{element}'")
 
     def list_uploads(self):
         if self._attachments is None:
@@ -577,14 +581,8 @@ data: {"received" if self.response is not None else "none"}
 
     def download_uploads(self, directory="Downloads/") -> None:
 
-        helper = HelperElabftw(self.api_key, self.url)
-        api_client = helper.api_client
-
-        uploadsApi = elabapi_python.UploadsApi(api_client)
-
         for upload in self.response.get_attachments():
-            upload_http: urllib3.response.HTTPResponse = (
-                uploadsApi.read_upload("", self.response.id, upload.id, _preload_content=False, format="binary"))
+            upload_http = self._get_upload_from_api(upload, format="binary", _preload_content=False)
 
             with open(directory + upload.real_name, "wb") as writefile:
                 writefile.write(upload_http.data)
@@ -594,6 +592,68 @@ data: {"received" if self.response is not None else "none"}
         self.response._download_directory = download_directory
 
         self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {download_directory}", "FIL")
+
+    def _get_upload_from_api(self, upload, **kwargs):
+        helper = HelperElabftw(self.api_key, self.url)
+        api_client = helper.api_client
+        uploadsApi = elabapi_python.UploadsApi(api_client)
+        upload_http: urllib3.response.HTTPResponse = (
+            uploadsApi.read_upload("", self.response.id, upload.id, **kwargs))
+        return upload_http
+
+    def open_upload(self, selection: Union[str, int]) -> Union[str, any]:
+
+        string_selection = None
+        index_selection = None
+
+        if self.response is None:
+            self._log("No data was received yet.", "USR")
+            return None
+        elif self.response.get_attachments() is None:
+            self._log("No uploads were attached to the received response.", "USR")
+            return None
+
+        if type(selection) is str:
+            string_selection = selection
+            for attachment in self.response.get_attachments():
+                if attachment.real_name == selection:
+                    index_selection = self.response.get_attachments().index(attachment)
+
+        elif type(selection) is int:
+            index_selection = selection
+            string_selection = self.response.get_attachments()[selection]
+
+        object_selection = None
+
+        for upload in self.response.get_attachments():
+            if upload.real_name == string_selection:
+                object_selection = upload
+
+        directory = self.response.get_download_directory()
+        if directory is None:
+            pass
+        elif directory[-1] != "\\":
+            directory += "\\"
+
+        if directory is not None:
+            return self._open_file(directory + string_selection)
+        elif object_selection is not None:
+            data = self._get_upload_from_api(object_selection, _preload_content=False, format="binary")
+            with open("Downloads/temp/" + object_selection.real_name, "wb") as writefile:
+                writefile.write(data.data)
+            self._log(f"""generated temporary file '{"Downloads/temp/" + object_selection.real_name}'""", "FIL")
+            re_read_data = self._open_file("Downloads/temp/" + object_selection.real_name)
+            os.remove("Downloads/temp/" + object_selection.real_name)
+            return re_read_data
+        else:
+            return None
+
+
+    @staticmethod
+    def _open_file(path) -> Union[str]:
+        with open(path, "r") as readfile:
+            str_content = readfile.read()
+            return str_content
 
     def select_item_from_api_response(self, response_list):
 
