@@ -605,6 +605,7 @@ data: {"received" if self.response is not None else "none"}
 
         string_selection = None
         index_selection = None
+        object_selection = None
 
         if self.response is None:
             self._log("No data was received yet.", "USR")
@@ -615,15 +616,14 @@ data: {"received" if self.response is not None else "none"}
 
         if type(selection) is str:
             string_selection = selection
-            for attachment in self.response.get_attachments():
-                if attachment.real_name == selection:
-                    index_selection = self.response.get_attachments().index(attachment)
 
         elif type(selection) is int:
-            index_selection = selection
-            string_selection = self.response.get_attachments()[selection]
-
-        object_selection = None
+            try:
+                object_selection = self.response.get_attachments()[selection]
+                string_selection = object_selection.real_name
+            except IndexError:
+                self._log("Error during attachment selection: index is out of range!", "USR")
+                return None
 
         for upload in self.response.get_attachments():
             if upload.real_name == string_selection:
@@ -648,12 +648,37 @@ data: {"received" if self.response is not None else "none"}
         else:
             return None
 
+    def _open_file(self, path, open_csv=True) -> Union[str, None]:
+
+        filetype = self._analyze_filetype(path)
+
+        if filetype == "csv" and open_csv:
+            return self._open_csv(path)
+        elif filetype in ["txt", "csv"]:
+            with open(path, "r") as readfile:
+                str_content = readfile.read()
+            return str_content
+        else:
+            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
+            return None
 
     @staticmethod
-    def _open_file(path) -> Union[str]:
-        with open(path, "r") as readfile:
-            str_content = readfile.read()
-            return str_content
+    def _analyze_filetype(path):
+        return path[path.rfind(".") + 1:]
+
+    def _open_csv(self, path, check=True, **kwargs):
+        csv_data = pd.read_csv(path, **kwargs)
+        if check:
+            if csv_data.shape[1] == 1:
+                self._log("CSV file seems to have only one column:", "USR")
+                self._log(f"Example row: {csv_data[:1]}", "USR")
+                self._log(f"Set delimiter and try again or type 'c' to continue", "USR")
+                delimiter = input(">> ")
+                if delimiter.strip() == "q":
+                    return csv_data
+                else:
+                    csv_data = self._open_csv(path, check=True, delimiter=delimiter)
+        return csv_data
 
     def select_item_from_api_response(self, response_list):
 
