@@ -225,6 +225,69 @@ class HelperElabftw:
         self.api_client.set_default_header(header_name='Authorization', header_value=api_key)
 
 
+class FileManager:
+    """
+    Contains all functionality related to reading from and writing to local files.
+    """
+    def __init__(self, silent=False, debug=False):
+        self._silent = silent
+        self._debug = debug
+        self.log = ""
+
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
+        """
+        Logs important events of data processing and other activities
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self._silent and category == "USR") or self._debug:
+            print(message)
+
+    def open_file(self, path, open_csv=True) -> Union[str, None]:
+
+        filetype = self._analyze_filetype(path)
+
+        if filetype == "csv" and open_csv:
+            return self.open_csv(path)
+        elif filetype in ["txt", "csv"]:
+            with open(path, "r") as readfile:
+                str_content = readfile.read()
+            return str_content
+        else:
+            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
+            return None
+
+    @staticmethod
+    def write_data_to_file(data, file_path, mode="w"):
+        with open(file_path, mode) as writefile:
+            writefile.write(data)
+
+    @staticmethod
+    def _analyze_filetype(path):
+        return path[path.rfind(".") + 1:]
+
+    def open_csv(self, path, check=True, **kwargs):
+        csv_data = pd.read_csv(path, **kwargs)
+        if check:
+            if csv_data.shape[1] == 1:
+                self._log("CSV file seems to have only one column:", "USR")
+                self._log(f"Example row: {csv_data[:1]}", "USR")
+                self._log(f"Set delimiter and try again or type 'c' to continue", "USR")
+                delimiter = input(">> ")
+                if delimiter.strip() == "q":
+                    return csv_data
+                else:
+                    csv_data = self.open_csv(path, check=True, delimiter=delimiter)
+        return csv_data
+
+    @staticmethod
+    def get_absolute_path(path):
+        return os.path.abspath(path)
+
+
 class ELNResponse:
     def __init__(self, response: dict=None, response_id: Union[int, str] = None,
                  silent: bool = False, debug: bool = False):
@@ -268,6 +331,7 @@ class ELNResponse:
         self._tables = None
         self._attachments = None
         self._download_directory = None
+        self.__file_manager = FileManager()
 
         if response is not None:
             self.extract_metadata()
@@ -355,41 +419,9 @@ class ELNResponse:
             directory += "\\"
 
         if directory is not None:
-            return self._open_file(directory + string_selection)
+            return self.__file_manager.open_file(directory + string_selection)
         else:
             return None
-
-    def _open_file(self, path, open_csv=True) -> Union[str, None]:
-
-        filetype = self._analyze_filetype(path)
-
-        if filetype == "csv" and open_csv:
-            return self._open_csv(path)
-        elif filetype in ["txt", "csv"]:
-            with open(path, "r") as readfile:
-                str_content = readfile.read()
-            return str_content
-        else:
-            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
-            return None
-
-    @staticmethod
-    def _analyze_filetype(path):
-        return path[path.rfind(".") + 1:]
-
-    def _open_csv(self, path, check=True, **kwargs):
-        csv_data = pd.read_csv(path, **kwargs)
-        if check:
-            if csv_data.shape[1] == 1:
-                self._log("CSV file seems to have only one column:", "USR")
-                self._log(f"Example row: {csv_data[:1]}", "USR")
-                self._log(f"Set delimiter and try again or type 'c' to continue", "USR")
-                delimiter = input(">> ")
-                if delimiter.strip() == "q":
-                    return csv_data
-                else:
-                    csv_data = self._open_csv(path, check=True, delimiter=delimiter)
-        return csv_data
 
     def toggle_debug(self, state: bool = None):
         if state is None:
@@ -532,6 +564,8 @@ class ELNImporter:
         self.silent = silent
         self.debug = debug
 
+        self.__file_manager = FileManager()
+
     def __str__(self):
         status = "unknown"
         if self.working is not None and self.working:
@@ -656,14 +690,11 @@ data: {"received" if self.response is not None else "none"}
         for upload in self.response.get_attachments():
             upload_http = self._get_upload_from_api(upload, format="binary", _preload_content=False)
 
-            with open(directory + upload.real_name, "wb") as writefile:
-                writefile.write(upload_http.data)
+            self.__file_manager.write_data_to_file(upload_http.data, directory + upload.real_name, mode="wb")
 
-        download_directory = os.path.abspath(directory)
+        self.response._download_directory = self.__file_manager.get_absolute_path(directory)
 
-        self.response._download_directory = download_directory
-
-        self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {download_directory}", "FIL")
+        self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {self.response._download_directory}", "FIL")
 
     def _get_upload_from_api(self, upload, **kwargs):
         helper = HelperElabftw(self.api_key, self.url)
@@ -708,13 +739,13 @@ data: {"received" if self.response is not None else "none"}
             directory += "\\"
 
         if directory is not None:
-            return self._open_file(directory + string_selection)
+            return self.__file_manager.open_file(directory + string_selection)
         elif object_selection is not None:
             data = self._get_upload_from_api(object_selection, _preload_content=False, format="binary")
             with open("Downloads/temp/" + object_selection.real_name, "wb") as writefile:
                 writefile.write(data.data)
             self._log(f"""generated temporary file '{"Downloads/temp/" + object_selection.real_name}'""", "FIL")
-            re_read_data = self._open_file("Downloads/temp/" + object_selection.real_name)
+            re_read_data = self.__file_manager.open_file("Downloads/temp/" + object_selection.real_name)
             os.remove("Downloads/temp/" + object_selection.real_name)
             return re_read_data
         else:
