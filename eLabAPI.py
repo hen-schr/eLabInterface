@@ -22,6 +22,25 @@ from scipy.optimize import direct
 module_version = 0.1
 
 
+class ELNDataLogger:
+    def __init__(self, debug=False, silent=False):
+        self.log = ""
+        self._debug = debug
+        self._silent = silent
+
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
+        """
+        Logs important events of data processing and other activities
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self._silent and category == "USR") or self._debug:
+            print(message)
+
+
 class TabularData:
     def __init__(self, data: Union[pd.DataFrame, pd.Series, list, Any] = None, metadata: dict = None, commands=None,
                  title: str = None, datatype: Literal["sample list", "element value", "array"] = None):
@@ -225,26 +244,13 @@ class HelperElabftw:
         self.api_client.set_default_header(header_name='Authorization', header_value=api_key)
 
 
-class FileManager:
+class FileManager(ELNDataLogger):
     """
     Contains all functionality related to reading from and writing to local files.
     """
     def __init__(self, silent=False, debug=False):
-        self._silent = silent
-        self._debug = debug
-        self.log = ""
 
-    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
-        """
-        Logs important events of data processing and other activities
-        :param message: Message to add to the log, will be automatically timestamped
-        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
-        """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
-                    + f"""\t{category if category is not None else "   "}\t{message}"""
-
-        if (not self._silent and category == "USR") or self._debug:
-            print(message)
+        super().__init__(debug, silent)
 
     def open_file(self, path, open_csv=True) -> Union[str, None]:
 
@@ -306,26 +312,26 @@ class FileManager:
         return path
 
 
-class ELNResponse:
+class ELNResponse(ELNDataLogger):
     """
     A general container for a response received from the API.
     """
-    def __init__(self, response: dict=None, response_id: Union[int, str] = None,
-                 silent: bool = False, debug: bool = False):
+    def __init__(self, response: dict = None, response_id: Union[int, str] = None, silent: bool = False,
+                 debug: bool = False):
         """
         :param response: The response (in dict format) that was received from the API
         :param response_id: The experiment id, is extracted from the metadata attribute for easier access if not specified upon creation
         :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
         :param debug: If True, all log messages will be printed in the console
         """
+
+        super().__init__(debug, silent)
+
         # most basic properties of this class
         self.id = response_id
         self._response = response
 
         # for logging and debugging
-        self.log = ""
-        self._silent = silent
-        self._debug = debug
         self._importer_log = None
 
         self._log("created ELNResponse instance", "PRC")
@@ -368,18 +374,6 @@ class ELNResponse:
             string += f"""\tlocal upload directory: {self._download_directory}\n"""
 
         return string
-
-    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
-        """
-        Logs important events of data processing and other activities
-        :param message: Message to add to the log, will be automatically timestamped
-        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
-        """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
-                    + f"""\t{category if category is not None else "   "}\t{message}"""
-
-        if (not self._silent and category == "USR") or self._debug:
-            print(message)
 
     def log_to_str(self, merge: Literal["no", "timed", "sections"] = "timed") -> str:
         """
@@ -624,7 +618,7 @@ class ELNResponse:
             self._tables[index].to_csv(file + ".csv", encoding="utf-8", sep=separator)
 
 
-class ELNImporter:
+class ELNImporter(ELNDataLogger):
     def __init__(self, api_key: str = None, url: str = None,
                  permissions: Literal["read only", "read and write"] = "read only",
                  silent: bool = False, debug: bool = False):
@@ -636,14 +630,14 @@ class ELNImporter:
         :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
         :param debug: If True, all log messages will also be printed in the console
         """
+
+        super().__init__(debug, silent)
+
         self.api_key = api_key
         self.url = url
         self.permissions = permissions
         self.response = None
         self.working = None
-        self.log = ""
-        self.silent = silent
-        self.debug = debug
 
         self.__file_manager = FileManager()
 
@@ -662,19 +656,6 @@ data: {"received" if self.response is not None else "none"}
         """
 
         return string
-
-    def _log(self, message: str, category: Literal["COM", "PRC", "FIL", "ERR", "WRN", "USR"]=None) -> None:
-        """
-        Logs important events of the API communication and data processing
-        :param message: Message to add to the log, will be automatically timestamped
-        :param category: COM (communication), PRC (processing), FIL (file system related), ERR (error), WRN (warning),
-        USR (user message)
-        """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
-                    + f"""\t{category if category is not None else "   "}\t{message}"""
-
-        if (not self.silent and category == "USR") or self.debug:
-            print(message)
 
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
                 read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
