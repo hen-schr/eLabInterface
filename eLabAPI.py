@@ -36,6 +36,8 @@ class ELNDataLogger:
         self._debug = debug
         self._silent = silent
 
+        self._log(f"Created instance of {self.__class__.__name__}", "PRC")
+
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
         Logs important events of data processing and other activities
@@ -339,8 +341,6 @@ class ELNResponse(ELNDataLogger):
 
         # for logging and debugging
         self._importer_log = None
-
-        self._log("created ELNResponse instance", "PRC")
 
         self._metadata = {
             "id": None,
