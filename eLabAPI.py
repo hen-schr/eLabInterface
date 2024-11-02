@@ -23,7 +23,15 @@ module_version = 0.1
 
 
 class ELNDataLogger:
+    """
+    Contains most essential functionalities for ELN entry processing to facilitate debugging and general transparency.
+    """
     def __init__(self, debug=False, silent=False):
+        """
+        :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
+        :param debug: If True, all log messages will be printed in the console
+        """
+
         self.log = ""
         self._debug = debug
         self._silent = silent
@@ -321,8 +329,6 @@ class ELNResponse(ELNDataLogger):
         """
         :param response: The response (in dict format) that was received from the API
         :param response_id: The experiment id, is extracted from the metadata attribute for easier access if not specified upon creation
-        :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
-        :param debug: If True, all log messages will be printed in the console
         """
 
         super().__init__(debug, silent)
@@ -627,8 +633,6 @@ class ELNImporter(ELNDataLogger):
         :param api_key: Key to access the API
         :param url: URL to access the API
         :param permissions: Permissions of the API
-        :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
-        :param debug: If True, all log messages will also be printed in the console
         """
 
         super().__init__(debug, silent)
