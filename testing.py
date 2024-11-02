@@ -12,15 +12,20 @@ importer.attach_api_key_from_file("C:/Users/henri/Unibox Rostock/Promotion/Daten
 importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments", permissions="read only")
 
 experiment = importer.request(advanced_query="id:5693", limit=1, download_uploads=True)
-experiment.toggle_debug()
+#experiment.toggle_debug()
 
 experiment.extract_tables(output_format="dataframes")
-experiment.add_metadata("id", 2345)
+# experiment.add_metadata("id", 2345)
 
-print(experiment.convert_to_markdown())
-print(experiment)
-experiment.list_uploads()
+# print(experiment.convert_to_markdown())
+# print(experiment)
+# experiment.list_uploads()
 
-print(experiment.log)
+# print(experiment.log)
 
-print(experiment.tables_to_str())
+# print(experiment.tables_to_str())
+
+# csv_data = importer.open_upload(2)
+csv_data = experiment.open_upload(1)
+
+print(experiment.log_to_str("sections"))
