@@ -262,16 +262,19 @@ class FileManager(ELNDataLogger):
 
         super().__init__(debug, silent)
 
-    def open_file(self, path, open_csv=True) -> Union[str, None]:
+    def open_file(self, path, open_csv=True, open_as: str = None, **kwargs) -> Union[str, None]:
 
         if not os.path.exists(path):
             self._log(f"Invalid path: '{path}'!", "USR")
             return None
 
-        filetype = self._analyze_filetype(path)
+        if open_as is not None:
+            filetype = open_as
+        else:
+            filetype = self._analyze_filetype(path)
 
         if filetype == "csv" and open_csv:
-            return self.open_csv(path)
+            return self.open_csv(path, **kwargs)
         elif filetype in ["txt", "csv"]:
             with open(path, "r") as readfile:
                 str_content = readfile.read()
@@ -568,7 +571,7 @@ class ELNResponse(ELNDataLogger):
 
         self._log(f"identified experiment type: {experiment_type}", "PRC")
 
-    def open_upload(self, selection: Union[str, int]) -> Union[str, any, None]:
+    def open_upload(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
         """
         Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
         :param selection: The name of the upload file (i.e. 'example.txt') or its index
@@ -600,7 +603,7 @@ class ELNResponse(ELNDataLogger):
 
         directory = self.get_download_directory()
 
-        return self.__file_manager.open_file(directory + string_selection)
+        return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
 
     def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
