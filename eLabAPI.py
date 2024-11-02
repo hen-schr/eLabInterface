@@ -319,6 +319,78 @@ class ELNResponse:
 
         self._log(string, "USR")
 
+    def open_upload(self, selection: Union[str, int]) -> Union[str, any]:
+
+        string_selection = None
+        index_selection = None
+        object_selection = None
+
+        if self._response is None:
+            self._log("Response doas not contain any data yet.", "USR")
+            return None
+        elif self.get_attachments() is None:
+            self._log("No uploads were attached to the response.", "USR")
+            return None
+        elif self._download_directory is None:
+            self._log("No uploads were dowloaded from the ELN API. Request downloads via the importer first.", "USR")
+            return None
+
+        if type(selection) is str:
+            string_selection = selection
+
+        elif type(selection) is int:
+            try:
+                object_selection = self.get_attachments()[selection]
+                string_selection = object_selection.real_name
+            except IndexError:
+                self._log("Error during attachment selection: index is out of range!", "USR")
+                return None
+
+        for upload in self.get_attachments():
+            if upload.real_name == string_selection:
+                object_selection = upload
+
+        directory = self.get_download_directory()
+        if directory[-1] != "\\":
+            directory += "\\"
+
+        if directory is not None:
+            return self._open_file(directory + string_selection)
+        else:
+            return None
+
+    def _open_file(self, path, open_csv=True) -> Union[str, None]:
+
+        filetype = self._analyze_filetype(path)
+
+        if filetype == "csv" and open_csv:
+            return self._open_csv(path)
+        elif filetype in ["txt", "csv"]:
+            with open(path, "r") as readfile:
+                str_content = readfile.read()
+            return str_content
+        else:
+            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
+            return None
+
+    @staticmethod
+    def _analyze_filetype(path):
+        return path[path.rfind(".") + 1:]
+
+    def _open_csv(self, path, check=True, **kwargs):
+        csv_data = pd.read_csv(path, **kwargs)
+        if check:
+            if csv_data.shape[1] == 1:
+                self._log("CSV file seems to have only one column:", "USR")
+                self._log(f"Example row: {csv_data[:1]}", "USR")
+                self._log(f"Set delimiter and try again or type 'c' to continue", "USR")
+                delimiter = input(">> ")
+                if delimiter.strip() == "q":
+                    return csv_data
+                else:
+                    csv_data = self._open_csv(path, check=True, delimiter=delimiter)
+        return csv_data
+
     def toggle_debug(self, state: bool = None):
         if state is None:
             self._debug = not self._debug
