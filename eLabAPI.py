@@ -240,7 +240,7 @@ class FileManager:
         :param message: Message to add to the log, will be automatically timestamped
         :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
         """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
 
         if (not self._silent and category == "USR") or self._debug:
@@ -307,10 +307,12 @@ class FileManager:
 
 
 class ELNResponse:
+    """
+    A general container for a response received from the API.
+    """
     def __init__(self, response: dict=None, response_id: Union[int, str] = None,
                  silent: bool = False, debug: bool = False):
         """
-        A general container for a response received from the API
         :param response: The response (in dict format) that was received from the API
         :param response_id: The experiment id, is extracted from the metadata attribute for easier access if not specified upon creation
         :param silent: If True, no messages will be displayed in the console - mainly intended for unittests
@@ -324,10 +326,10 @@ class ELNResponse:
         self.log = ""
         self._silent = silent
         self._debug = debug
+        self._importer_log = None
 
         self._log("created ELNResponse instance", "PRC")
 
-        #
         self._metadata = {
             "id": None,
             "title": None,
@@ -367,6 +369,84 @@ class ELNResponse:
 
         return string
 
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
+        """
+        Logs important events of data processing and other activities
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self._silent and category == "USR") or self._debug:
+            print(message)
+
+    def log_to_str(self, merge: Literal["no", "timed", "sections"] = "timed") -> str:
+        """
+        Returns the log entries of the Response instance, as well as the attached Importer and
+        :param merge: Format of the log string. 'no' - only the response log is returned. 'timed' - all three logs are merged and sorted by time.'sections' - the three logs are displayed in separate sections
+        :return: The formatted log string
+        """
+        if merge == "no":
+            return self.log
+        elif merge == "timed":
+            log = self._dissect_log(self.log, "Response")
+            import_log = self._dissect_log(self._importer_log, "Importer") if self._importer_log is not None else []
+            file_log = self._dissect_log(self.__file_manager.log, "Filemanager")
+
+            result = sorted(log + import_log + file_log, key=lambda x: x[0])
+
+            log_string = ""
+
+            for line in result:
+                log_string += line[0].strftime("%y-%m-%d %H:%H:%S.%f") + "\t" + line[1] + "\n"
+
+            return log_string
+        elif merge == "sections":
+            log = self.log
+            import_log = self._importer_log if self._importer_log is not None else ""
+            file_log = self.__file_manager.log
+
+            null_message = "\nNothing here"
+
+            log_string = f"""
+=== Response ===
+{log}
+            
+=== Importer ===
+{import_log if import_log != "" else null_message}
+            
+=== FileManager ===
+{file_log if file_log != "" else null_message}
+            """
+
+            return log_string
+
+    @staticmethod
+    def _dissect_log(log: str, prefix=None) -> list[tuple[datetime.time, str]]:
+        """
+        Separates a log string into a list of time-resolved log entries
+        :param log: The log string to process
+        :param prefix: Is prepended to the log message to specify its origin or category
+        :return: A list of date-message-tuples
+        """
+        prefix = f"{prefix}\t" if prefix is not None else ""
+
+        log_lines = []
+        for line in log.strip("\n ").split("\n"):
+            try:
+                split_line = line.split("\t", 1)
+                date = datetime.strptime(split_line[0], "%y-%m-%d %H:%M:%S.%f")
+                content = f"{prefix}" + split_line[1]
+                log_lines.append((date, content))
+            except ValueError:
+                pass
+
+        return log_lines
+
+    """
+    Getters and setters
+    """
     def get_attachments(self):
         return self._attachments
 
@@ -379,7 +459,7 @@ class ELNResponse:
 
     def add_metadata(self, element: str, value: Any):
 
-        if element in self._metadata:
+        if element in self._metadata and self._metadata[element] is not None:
             self._log(f"metadata element '{element}' was overwritten by user", "WRN")
 
         self._metadata[element] = value
@@ -392,6 +472,9 @@ class ELNResponse:
         else:
             raise AttributeError(f"ELNResponse has no metadata element '{element}'")
 
+    def add_importer_log(self, log):
+        self._importer_log = log
+
     def list_uploads(self):
         if self._attachments is None:
             return None
@@ -401,57 +484,11 @@ class ELNResponse:
 
         self._log(string, "USR")
 
-    def open_upload(self, selection: Union[str, int]) -> Union[str, any, None]:
-        """
-        Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
-        :param selection: The name of the upload file (i.e. 'example.txt') or its index
-        :return: The loaded content of the file - the type depends on the type of the file. None, when no matching file was found.
-        """
-        string_selection = None
-
-        """
-        Loading the file will only work, if a response has been received and the attachments were downloaded during the import.
-        """
-        if self._response is None:
-            self._log("Response does not contain any data yet.", "USR")
-            return None
-        elif self.get_attachments() is None:
-            self._log("No uploads were attached to the response.", "USR")
-            return None
-        elif self._download_directory is None:
-            self._log("No uploads were downloaded from the ELN API. Request downloads via the importer first.", "USR")
-            return None
-
-        if type(selection) is str:
-            string_selection = selection
-        elif type(selection) is int:
-            try:
-                string_selection = self.get_attachments()[selection].real_name
-            except IndexError:
-                self._log("Error during attachment selection: index is out of range!", "USR")
-                return None
-
-        directory = self.get_download_directory()
-
-        return self.__file_manager.open_file(directory + string_selection)
-
     def toggle_debug(self, state: bool = None):
         if state is None:
             self._debug = not self._debug
         else:
             self._debug = state
-
-    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
-        """
-        Logs important events of data processing and other activities
-        :param message: Message to add to the log, will be automatically timestamped
-        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
-        """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
-                    + f"""\t{category if category is not None else "   "}\t{message}"""
-
-        if (not self._silent and category == "USR") or self._debug:
-            print(message)
 
     def response_to_str(self):
         if self._response is not None:
@@ -506,7 +543,6 @@ class ELNResponse:
         elif "id" not in self._metadata and self.id is None:
             raise AttributeError("missing essential metadata entry 'id'!")
 
-
     def identify_experiment_type(self):
         if self._metadata["experimentType"] is not None:
             return
@@ -532,6 +568,39 @@ class ELNResponse:
 
         self._log(f"identified experiment type: {experiment_type}", "PRC")
 
+    def open_upload(self, selection: Union[str, int]) -> Union[str, any, None]:
+        """
+        Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
+        :param selection: The name of the upload file (i.e. 'example.txt') or its index
+        :return: The loaded content of the file - the type depends on the type of the file. None, when no matching file was found.
+        """
+        string_selection = None
+
+        """
+        Loading the file will only work, if a response has been received and the attachments were downloaded during the import.
+        """
+        if self._response is None:
+            self._log("Response does not contain any data yet.", "USR")
+            return None
+        elif self.get_attachments() is None:
+            self._log("No uploads were attached to the response.", "USR")
+            return None
+        elif self._download_directory is None:
+            self._log("No uploads were downloaded from the ELN API. Request downloads via the importer first.", "USR")
+            return None
+
+        if type(selection) is str:
+            string_selection = selection
+        elif type(selection) is int:
+            try:
+                string_selection = self.get_attachments()[selection].real_name
+            except IndexError:
+                self._log("Error during attachment selection: index is out of range!", "USR")
+                return None
+
+        directory = self.get_download_directory()
+
+        return self.__file_manager.open_file(directory + string_selection)
 
     def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
@@ -601,7 +670,7 @@ data: {"received" if self.response is not None else "none"}
         :param category: COM (communication), PRC (processing), FIL (file system related), ERR (error), WRN (warning),
         USR (user message)
         """
-        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S")}""" \
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
 
         if (not self.silent and category == "USR") or self.debug:
@@ -676,6 +745,8 @@ data: {"received" if self.response is not None else "none"}
                 if download_uploads:
                     self.download_uploads()
 
+            self.response.add_importer_log(self.log)
+
             return self.response
 
         except urllib3.exceptions.MaxRetryError:
@@ -706,7 +777,7 @@ data: {"received" if self.response is not None else "none"}
 
         self.response._download_directory = self.__file_manager.get_absolute_path(directory)
 
-        self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {self.response._download_directory}", "FIL")
+        self._log(f"wrote {len(self.response.get_attachments())} uploads to directory: {self.response.get_download_directory()}", "FIL")
 
     def _get_upload_from_api(self, upload, **kwargs):
         helper = HelperElabftw(self.api_key, self.url)
