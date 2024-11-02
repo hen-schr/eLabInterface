@@ -248,6 +248,10 @@ class FileManager:
 
     def open_file(self, path, open_csv=True) -> Union[str, None]:
 
+        if not os.path.exists(path):
+            self._log(f"Invalid path: '{path}'!", "USR")
+            return None
+
         filetype = self._analyze_filetype(path)
 
         if filetype == "csv" and open_csv:
@@ -286,6 +290,20 @@ class FileManager:
     @staticmethod
     def get_absolute_path(path):
         return os.path.abspath(path)
+
+    @staticmethod
+    def unify_directory(path: str) -> str:
+        """
+        Converts a given path string into a unified format to ensure consistency.
+        :param path: Absolute or relative path to the directory
+        :return: Path string in the format 'path/to/directory/'
+        """
+        path = path.replace("/", "\\")
+
+        if path[-1] != "\\":
+            path += "\\"
+
+        return path
 
 
 class ELNResponse:
@@ -353,7 +371,7 @@ class ELNResponse:
         return self._attachments
 
     def get_download_directory(self):
-        return self._download_directory
+        return self.__file_manager.unify_directory(self._download_directory)
 
     def set_metadata(self, data: dict):
         self._metadata = data
@@ -383,45 +401,39 @@ class ELNResponse:
 
         self._log(string, "USR")
 
-    def open_upload(self, selection: Union[str, int]) -> Union[str, any]:
-
+    def open_upload(self, selection: Union[str, int]) -> Union[str, any, None]:
+        """
+        Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
+        :param selection: The name of the upload file (i.e. 'example.txt') or its index
+        :return: The loaded content of the file - the type depends on the type of the file. None, when no matching file was found.
+        """
         string_selection = None
-        index_selection = None
-        object_selection = None
 
+        """
+        Loading the file will only work, if a response has been received and the attachments were downloaded during the import.
+        """
         if self._response is None:
-            self._log("Response doas not contain any data yet.", "USR")
+            self._log("Response does not contain any data yet.", "USR")
             return None
         elif self.get_attachments() is None:
             self._log("No uploads were attached to the response.", "USR")
             return None
         elif self._download_directory is None:
-            self._log("No uploads were dowloaded from the ELN API. Request downloads via the importer first.", "USR")
+            self._log("No uploads were downloaded from the ELN API. Request downloads via the importer first.", "USR")
             return None
 
         if type(selection) is str:
             string_selection = selection
-
         elif type(selection) is int:
             try:
-                object_selection = self.get_attachments()[selection]
-                string_selection = object_selection.real_name
+                string_selection = self.get_attachments()[selection].real_name
             except IndexError:
                 self._log("Error during attachment selection: index is out of range!", "USR")
                 return None
 
-        for upload in self.get_attachments():
-            if upload.real_name == string_selection:
-                object_selection = upload
-
         directory = self.get_download_directory()
-        if directory[-1] != "\\":
-            directory += "\\"
 
-        if directory is not None:
-            return self.__file_manager.open_file(directory + string_selection)
-        else:
-            return None
+        return self.__file_manager.open_file(directory + string_selection)
 
     def toggle_debug(self, state: bool = None):
         if state is None:
