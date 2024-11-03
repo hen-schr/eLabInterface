@@ -6,6 +6,7 @@ well as methods to convert the data into useful formats for further processing, 
 © 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
+import csv
 from datetime import datetime
 from typing import Union, Literal, Any
 import elabapi_python
@@ -17,7 +18,9 @@ import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
 from elabapi_python import Upload
+from matplotlib.table import table
 from scipy.optimize import direct
+from io import StringIO
 
 module_version = 0.1
 
@@ -52,25 +55,30 @@ class ELNDataLogger:
 
 
 class TabularData:
-    def __init__(self, data: Union[pd.DataFrame, pd.Series, list, Any] = None, metadata: dict = None, commands=None,
+    def __init__(self, data: Union[pd.DataFrame, pd.Series, list, dict, Any] = None, metadata: dict = None, commands=None,
                  title: str = None, datatype: Literal["sample list", "element value", "array"] = None):
         self._data = data
         self._metadata = metadata
         self.title = title
         self.datatype = datatype
 
-        if self.title is None and "title" in self._metadata:
-            self.title = self._metadata["title"]
-        if self.datatype is None and "datatype" in self._metadata:
-            self.datatype = self._metadata["datatype"]
+        if self._metadata is not None:
+            if self.title is None and "title" in self._metadata:
+                self.title = self._metadata["title"]
+            if self.datatype is None and "datatype" in self._metadata:
+                self.datatype = self._metadata["datatype"]
 
         if commands is not None:
             self.apply_commands(commands)
 
+    def to_string(self) -> str:
+        if type(self._data) == pd.DataFrame:
+            return self._data.to_string()
+
     def set_data(self, data: Union[pd.DataFrame, pd.Series, list, Any]):
         self._data = data
 
-    def get_data(self):
+    def data(self):
         return self._data
 
     def apply_commands(self, commands):
@@ -169,15 +177,22 @@ class MDInterpreter:
         return commands, converted_tables
 
     @staticmethod
-    def _line_list_to_array(table_lines: list[str], separator="|"):
+    def _line_list_to_array(table_lines: list[str], separator="|", del_chars=True):
 
-        converted_table = []
+        print(table_lines)
 
-        for line in table_lines:
-            split_line = line[1:-1].split(sep=separator)
-            converted_table.append([])
-            for entry in split_line:
-                converted_table[-1].append(entry.strip())
+        if del_chars:
+            proc_table_lines = []
+            for line in table_lines:
+                proc_line = line.replace(f" {separator} ", separator)
+                proc_line = proc_line.replace(f"{separator} ", "")
+                proc_line = proc_line.replace(f" {separator}", "")
+                proc_table_lines.append(proc_line)
+            converted_table = csv.reader(proc_table_lines, delimiter=separator)
+        else:
+            converted_table = csv.reader(table_lines, delimiter=separator)
+
+        print(list(converted_table))
 
         return converted_table
 
@@ -509,6 +524,8 @@ class ELNResponse(ELNDataLogger):
                     string += "\t".join(line) + "\n"
             elif type(table) is pd.DataFrame:
                 string += table.to_string()
+            elif type(table) is TabularData:
+                string += table.to_string()
 
             string += "\n\n"
 
@@ -605,7 +622,59 @@ class ELNResponse(ELNDataLogger):
 
         return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
 
-    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
+    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True, **kwargs):
+
+        html_body = self._response["body"]
+
+        if "decimal" in kwargs:
+            decimal = kwargs["decimal"]
+        else:
+            decimal = "."
+
+        tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
+
+        if reformat:
+            tables_pd = self._reformat_tables(tables_pd)
+
+        if output_format == "dataframes":
+            self._tables = tables_pd
+            return self._tables
+        elif output_format == "list":
+            for table in tables_pd:
+                self._tables.append(table.values.tolist())
+            return self._tables
+
+    def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame]) -> Union[TabularData, list[TabularData]]:
+
+        if type(tables) is list:
+            conv_tables = []
+            for table in tables:
+                conv_tables.append(self._reformat_tables(table))
+            return conv_tables
+
+        converted_table = TabularData(data=tables)
+
+        if tables.iloc[0, 0][0] == ".":
+            converted_table = converted_table._data.drop(0)
+            converted_table = self._interpret_header(tables.iloc[0, 0], converted_table)
+
+        return converted_table
+
+    @staticmethod
+    def _interpret_header(command, table: pd.DataFrame) -> TabularData:
+
+        commands = {"doo": ""}
+
+        for cmd in commands:
+            if cmd in command:
+                print("ok")
+                return table
+
+        table.title = command[1:].strip()
+
+        return table
+
+    def extract_tables_old(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
 
         md_interpreter = MDInterpreter(md_body)
