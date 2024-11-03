@@ -710,17 +710,6 @@ class ELNResponse(ELNDataLogger):
                 if table.title == selection:
                     return table.data()
 
-    def extract_tables_old(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
-        md_body = self.convert_to_markdown()
-
-        md_interpreter = MDInterpreter(md_body)
-
-        md_interpreter.extract_tables(output_format=output_format, reformat=reformat)
-
-        self._tables = md_interpreter.tables
-
-        return self._tables
-
     def save_to_csv(self, file, index=None, separator=";"):
 
         file = file.replace(".csv", "")
