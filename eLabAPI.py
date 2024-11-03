@@ -78,6 +78,9 @@ class TabularData:
     def set_data(self, data: Union[pd.DataFrame, pd.Series, list, Any]):
         self._data = data
 
+    def set_headers(self, headers):
+        self._data.columns = headers
+
     def data(self):
         return self._data
 
@@ -647,7 +650,7 @@ class ELNResponse(ELNDataLogger):
         tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
 
         if reformat:
-            tables_pd: list[TabularData] = self._reformat_tables(tables_pd)
+            tables_pd = self._reformat_tables(tables_pd)
 
         if output_format == "dataframes":
             self._tables = tables_pd
@@ -655,7 +658,7 @@ class ELNResponse(ELNDataLogger):
         elif output_format == "list":
             for table in tables_pd:
                 if reformat:
-                    self._tables.append(table._data.values.tolist())
+                    self._tables.append(table.data().values.tolist())
                 else:
                     self._tables.append(table.values.tolist())
             return self._tables
@@ -673,20 +676,20 @@ class ELNResponse(ELNDataLogger):
         potential_header_command = tables.iloc[0, 0]
 
         if type(potential_header_command) is str and potential_header_command[0] == ".":
-            converted_table._data = converted_table._data.drop(0)
-            converted_table._data = converted_table._data.reset_index(drop=True)
+            converted_table._data = converted_table.data().drop(0)
+            converted_table._data = converted_table.data().reset_index(drop=True)
             converted_table = self._interpret_header(tables.iloc[0, 0], converted_table)
 
         if tables.shape[1] != 2:
-            headers = converted_table._data.iloc[[0]].values.tolist()[0]
-            converted_table._data.columns = headers
-            converted_table._data = converted_table._data.drop(0)
-            converted_table._data = converted_table._data.reset_index(drop=True)
+            headers = converted_table.data().iloc[[0]].values.tolist()[0]
+            converted_table.set_headers(headers)
+            converted_table.set_data(converted_table.data().drop(0))
+            converted_table.set_data(converted_table.data().reset_index(drop=True))
 
         return converted_table
 
     @staticmethod
-    def _interpret_header(command, table: pd.DataFrame) -> TabularData:
+    def _interpret_header(command, table: TabularData) -> TabularData:
 
         commands = {"doo": ""}
 
