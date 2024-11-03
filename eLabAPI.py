@@ -307,6 +307,16 @@ class FileManager(ELNDataLogger):
     def _analyze_filetype(path):
         return path[path.rfind(".") + 1:]
 
+    @staticmethod
+    def write_to_csv(path: str, data: Union[pd.DataFrame, TabularData], separator=";"):
+
+        path = path.replace(".csv", "")
+
+        if type(data) is pd.DataFrame:
+            data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+        elif type(data) is TabularData:
+            data._data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+
     def open_csv(self, path, check=True, **kwargs):
         csv_data = pd.read_csv(path, **kwargs)
         if check:
@@ -622,7 +632,10 @@ class ELNResponse(ELNDataLogger):
 
         return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
 
-    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True, **kwargs):
+    def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True, reset=True, **kwargs):
+
+        if reset:
+            self._tables = []
 
         html_body = self._response["body"]
 
@@ -634,14 +647,17 @@ class ELNResponse(ELNDataLogger):
         tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
 
         if reformat:
-            tables_pd = self._reformat_tables(tables_pd)
+            tables_pd: list[TabularData] = self._reformat_tables(tables_pd)
 
         if output_format == "dataframes":
             self._tables = tables_pd
             return self._tables
         elif output_format == "list":
             for table in tables_pd:
-                self._tables.append(table.values.tolist())
+                if reformat:
+                    self._tables.append(table._data.values.tolist())
+                else:
+                    self._tables.append(table.values.tolist())
             return self._tables
 
     def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame]) -> Union[TabularData, list[TabularData]]:
@@ -654,9 +670,18 @@ class ELNResponse(ELNDataLogger):
 
         converted_table = TabularData(data=tables)
 
-        if tables.iloc[0, 0][0] == ".":
-            converted_table = converted_table._data.drop(0)
+        potential_header_command = tables.iloc[0, 0]
+
+        if type(potential_header_command) is str and potential_header_command[0] == ".":
+            converted_table._data = converted_table._data.drop(0)
+            converted_table._data = converted_table._data.reset_index(drop=True)
             converted_table = self._interpret_header(tables.iloc[0, 0], converted_table)
+
+        if tables.shape[1] != 2:
+            headers = converted_table._data.iloc[[0]].values.tolist()[0]
+            converted_table._data.columns = headers
+            converted_table._data = converted_table._data.drop(0)
+            converted_table._data = converted_table._data.reset_index(drop=True)
 
         return converted_table
 
@@ -673,6 +698,17 @@ class ELNResponse(ELNDataLogger):
         table.title = command[1:].strip()
 
         return table
+
+    def return_table_as_pd(self, selection: Union[str, int]) -> pd.DataFrame:
+        if type(selection) is int:
+            try:
+                return self._tables[selection].data()
+            except IndexError:
+                self._log("Error for selection: index is out of range!", "USR")
+        else:
+            for table in self._tables:
+                if table.title == selection:
+                    return table.data()
 
     def extract_tables_old(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True) -> list[list]:
         md_body = self.convert_to_markdown()
@@ -691,9 +727,9 @@ class ELNResponse(ELNDataLogger):
 
         if index is None:
             for i, table in enumerate(self._tables):
-                table.to_csv(f"{file}-{i+1}.csv", encoding="utf-8", sep=separator)
+                self.__file_manager.write_to_csv(f"{file}-{i+1}", table, separator=separator)
         else:
-            self._tables[index].to_csv(file + ".csv", encoding="utf-8", sep=separator)
+            self.__file_manager.write_to_csv(file, self._tables[index], separator=separator)
 
 
 class ELNImporter(ELNDataLogger):
