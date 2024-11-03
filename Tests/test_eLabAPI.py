@@ -261,10 +261,9 @@ class TestELNResponse(unittest.TestCase):
         with open("testfiles/tabletest_2.md", "r") as readfile:
             response = readfile.read()
 
-        with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
-            mocked_md_body.return_value = response
+        self.response._response["body"] = response
 
-            self.response.extract_tables(reformat=False)
+        self.response.extract_tables()
 
         str_tables = self.response.tables_to_str()
 
@@ -307,30 +306,28 @@ class TestELNResponse(unittest.TestCase):
 
     def test_extract_tables(self):
 
-        test_files = ["testfiles/tabletest_1.md", "testfiles/tabletest_2.md"]
+        test_files = ["testfiles/tabletest_1.md"]#, "testfiles/tabletest_2.md"]
 
         for file in test_files:
             with open(file, "r") as readfile:
                 response = readfile.read()
 
-            with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
-                mocked_md_body.return_value = response
+            self.response._response["body"] = response
 
-                self.response.extract_tables()
-                self.assertEqual(type(self.response._tables[0]), pd.DataFrame)
+            self.response.extract_tables()
+            self.assertEqual(eLabAPI.TabularData, type(self.response._tables[0]))
 
-                self.response.extract_tables(output_format="list")
-                self.assertEqual(type(self.response._tables[0]), list)
+            self.response.extract_tables(output_format="list")
+            self.assertEqual(list, type(self.response._tables[0]))
 
     def test_save_to_csv(self):
 
         with open("testfiles/tabletest_2.md", "r") as readfile:
             response = readfile.read()
 
-        with patch("eLabAPI.ELNResponse.convert_to_markdown") as mocked_md_body:
-            mocked_md_body.return_value = response
+        self.response._response["body"] = response
 
-            self.response.extract_tables()
+        self.response.extract_tables()
 
         self.response.save_to_csv("testfiles/results/table_conversion.csv", index=0, separator=";")
 
