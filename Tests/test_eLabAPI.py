@@ -244,6 +244,99 @@ class TestELNResponse(unittest.TestCase):
 
         self.assertEqual(self.response._tables, None)
 
+    # TODO
+    def test_log_to_str(self):
+        pass
+
+    # TODO
+    def test__dissect_log(self):
+        pass
+
+    def test_get_attachments(self):
+
+        attachments = ["test.csv", "test.png"]
+
+        self.response._attachments = attachments
+
+        self.assertEqual(attachments, self.response.get_attachments())
+
+    def test_get_download_directory(self):
+
+        self.assertIsNone(self.response._download_directory)
+
+        download_directories = ["/Downloads/", "/Downloads", "\\Downloads", "\\Downloads\\", "Downloads", "Downloads/"]
+
+        for directory in download_directories:
+
+            self.response._download_directory = directory
+
+            self.assertEqual("Downloads\\", self.response.get_download_directory())
+
+    def test_set_metadata(self):
+
+        metadata = [{"id": "021"}, None, {"id": 21}]
+
+        for meta in metadata:
+            log_len = len(self.response.log)
+
+            self.response.set_metadata(meta)
+            self.assertEqual(self.response._metadata, meta)
+
+            self.assertGreater(len(self.response.log), log_len)
+
+    def test_add_metadata(self):
+        self.response._metadata = {"id": "1234"}
+
+        new_metadata = [("name", "max"), ("count", 1), ("value", -1.2)]
+
+        for meta in new_metadata:
+            meta_len = len(self.response._metadata)
+            self.response.add_metadata(meta[0], meta[1])
+
+            self.assertGreater(len(self.response._metadata), meta_len)
+
+        log_len = len(self.response.log)
+        meta_len = len(self.response._metadata)
+
+        self.response.add_metadata("id", "5678")
+
+        self.assertGreater(len(self.response.log), log_len)
+        self.assertEqual(len(self.response._metadata), meta_len)
+
+    def test_get_metadata(self):
+        test_metadata = {"id": "1234", "value": 1, "number": -1.1}
+
+        self.response._metadata = test_metadata
+
+        for key in test_metadata:
+            self.assertEqual(test_metadata[key], self.response.get_metadata(key))
+
+        self.assertEqual(test_metadata, self.response.get_metadata())
+
+    # TODO
+    def test_add_importer_log(self):
+        pass
+
+    # TODO
+    def test_list_uploads(self):
+        pass
+
+    def test_toggle_debug(self):
+
+        self.response._debug = False
+
+        self.response.toggle_debug()
+
+        self.assertTrue(self.response._debug)
+
+        self.response.toggle_debug(False)
+
+        self.assertFalse(self.response._debug)
+
+        self.response.toggle_debug(True)
+
+        self.assertTrue(self.response._debug)
+
     def test_response_to_str(self):
         str_response = self.response.response_to_str()
 
@@ -304,6 +397,10 @@ class TestELNResponse(unittest.TestCase):
 
         self.assertEqual(self.response._metadata["experimentType"], "experiment")
 
+    # TODO
+    def test_open_upload(self):
+        pass
+
     def test_extract_tables(self):
 
         test_files = ["testfiles/tabletest_1.md"]#, "testfiles/tabletest_2.md"]
@@ -319,6 +416,18 @@ class TestELNResponse(unittest.TestCase):
 
             self.response.extract_tables(output_format="list")
             self.assertEqual(list, type(self.response._tables[0]))
+
+    # TODO
+    def test__reformat_tables(self):
+        pass
+
+    # TODO
+    def test__interpret_header(self):
+        pass
+
+    # TODO
+    def test_return_table_as_pd(self):
+        pass
 
     def test_save_to_csv(self):
 
