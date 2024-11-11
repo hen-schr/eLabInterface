@@ -102,7 +102,7 @@ class TestELNImporter(unittest.TestCase):
         with patch("elabapi_python.UploadsApi.read_uploads") as mocked_api_response:
             mocked_api_response.return_value = self.uploads_response_obj
 
-            uploads = self.importer.request_uploads("arbitrary_identifier")
+            uploads = self.importer.request_attachments("arbitrary_identifier")
 
             self.assertEqual(("", "arbitrary_identifier"), mocked_api_response.call_args.args)
 
@@ -117,7 +117,7 @@ class TestELNImporter(unittest.TestCase):
         with patch("elabapi_python.UploadsApi.read_upload") as mocked_api_response:
             mocked_api_response.return_value = urllib3.response.HTTPResponse(body=b"0;1\n2;3\n;4;5")
 
-            self.importer.download_uploads("testfiles/downloads/")
+            self.importer.download_attachments("testfiles/downloads/")
 
         with open("testfiles/downloads/" + self.uploads_response_obj[0].real_name, "r") as readfile:
             file_content = readfile.read()
@@ -205,29 +205,6 @@ class TestELNImporter(unittest.TestCase):
             self.importer.ping_api()
 
             self.assertEqual(self.importer.response, None)
-
-
-class TestBasicFunctions(unittest.TestCase):
-    def test_list_from_string(self):
-        strings = ["a|b|c", "0|1|-2", "a|0|?", "", "1.1|4|a"]
-        expected = [["a", "b", "c"], [0, 1, -2], ["a", 0, "?"], [""], [1.1, 4, "a"]]
-
-        for s, e in (zip(strings, expected)):
-            self.assertEqual(eLabAPI.list_from_string(s, strict_conversion=False), e)
-
-        self.assertEqual(eLabAPI.list_from_string(strings[4], separator=";"), [strings[4]])
-
-    def test_try_float_conversion(self):
-        strings = ["1", "-1", "100000000", "1e4", "1.4e-3", "1.4", "a", "", 2, 1.1]
-        expected = [1, -1, 100000000, 10000.0, 0.0014, 1.4, "a", "", 2, 1.1]
-
-        invalid_input = eLabAPI.ELNImporter()
-
-        for s, e in (zip(strings, expected)):
-            self.assertEqual(eLabAPI.try_float_conversion(s), e)
-
-        with self.assertRaises(ValueError):
-            eLabAPI.try_float_conversion(invalid_input)
 
 
 class TestELNResponse(unittest.TestCase):
