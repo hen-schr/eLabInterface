@@ -72,6 +72,18 @@ class TabularData:
         if commands is not None:
             self.apply_commands(commands)
 
+    def width(self):
+        if self._data is not None:
+            return self._data.shape[1]
+        else:
+            return None
+
+    def height(self):
+        if self._data is not None:
+            return self._data.shape[0]
+        else:
+            return None
+
     def to_string(self) -> str:
         if type(self._data) == pd.DataFrame:
             return self._data.to_string()
@@ -290,7 +302,7 @@ class FileManager(ELNDataLogger):
         if open_as is not None:
             filetype = open_as
         else:
-            filetype = self._analyze_filetype(path)
+            filetype = self.analyze_filetype(path)
 
         if filetype == "csv" and open_csv:
             return self.open_csv(path, **kwargs)
@@ -308,7 +320,7 @@ class FileManager(ELNDataLogger):
             writefile.write(data)
 
     @staticmethod
-    def _analyze_filetype(path):
+    def analyze_filetype(path):
         return path[path.rfind(".") + 1:]
 
     @staticmethod
@@ -371,7 +383,7 @@ class ELNResponse(ELNDataLogger):
         super().__init__(debug, silent)
 
         # most basic properties of this class
-        self.id = str(response_id)
+        self.id = response_id
         self._response = response
 
         # for logging and debugging
@@ -392,7 +404,8 @@ class ELNResponse(ELNDataLogger):
             "locked": None,
             "lockedby": None,
             "locked_at": None,
-            "requestTimeStamp": None
+            "requestTimeStamp": None,
+            "orcid": None
         }
 
         self._tables = None
@@ -773,6 +786,43 @@ class ELNResponse(ELNDataLogger):
         else:
             self.__file_manager.write_to_csv(file, self._tables[index], separator=separator)
 
+    def save_to_json(self, path=None, **kwargs):
+
+        self._response["requestTimeStamp"] = self.get_metadata("requestTimeStamp")
+
+        with open(path, "w") as writefile:
+            json.dump(self._response, writefile, **kwargs)
+
+    def read_response_from_json(self, file, process=True):
+        with open(file, "r") as readfile:
+            response = json.load(readfile)
+
+        self._response = response
+
+        if process:
+            self.extract_metadata()
+
+    def as_dict(self, element: str = None):
+        eln_dict = self._metadata
+        if self._tables is not None:
+            eln_dict.update(self._get_dict_from_tables())
+
+        if element is None:
+            return eln_dict
+        else:
+            try:
+                return eln_dict[element]
+            except KeyError:
+                self._log(f"could not find element '{element}' in response dictionary", "USR")
+
+    def _get_dict_from_tables(self):
+        table_dict = {}
+        for table in self._tables:
+            if table.width() == 2:
+                table_dict.update(dict(table._data.values))
+
+        return  table_dict
+
 
 class ELNImporter(ELNDataLogger):
     def __init__(self, api_key: str = None, url: str = None,
@@ -812,7 +862,7 @@ data: {"received" if self.response is not None else "none"}
         return string
 
     def request(self, query: str = None, limit: int = None, advanced_query: str = None, allow_list: bool = False,
-                read_uploads: bool = False, download_uploads = False, return_http_response: bool=False
+                read_attachments: bool = False, download_attachments: Union[bool, str] = False, return_http_response: bool=False
                 ) -> Union[ELNResponse, list[ELNResponse], urllib3.response.HTTPResponse, None]:
         """
         Sends a request to the API and stores / returns the response
@@ -820,8 +870,8 @@ data: {"received" if self.response is not None else "none"}
         :param limit: Maximum amount of results returned by the response
         :param advanced_query: Element-value pair (i.e. 'id:1234') to filter response
         :param allow_list: If True, a list of ELNResponse objects is returned instead of asking the user to select one
-        :param read_uploads: If True, all attached files of the ELN entry will be attached to the ELNResponse
-        :param download_uploads: If True, all attachments will be downloaded
+        :param read_attachments: If True, all attached files of the ELN entry will be attached to the ELNResponse
+        :param download_attachments: If True, all attachments will be downloaded
         :param return_http_response: If True, raw HTTPResponse will be returned instead of an ELNResponse
         :return: Response for the given request
         """
@@ -873,12 +923,14 @@ data: {"received" if self.response is not None else "none"}
                 self.response.add_metadata("requestTimeStamp", datetime.strftime(datetime.now(), "%y-%m-%d %H:%M:%S"))
 
 
-                if read_uploads or download_uploads:
+                if read_attachments or download_attachments:
                     self.response.extract_metadata()
-                    self.request_uploads(self.response.id)
+                    self.request_attachments(self.response.id)
 
-                if download_uploads:
-                    self.download_uploads()
+                if download_attachments and type(download_attachments) is bool:
+                    self.download_attachments()
+                elif download_attachments and type(download_attachments) is str:
+                    self.download_attachments(directory=download_attachments)
 
             self.response.add_importer_log(self.log)
 
@@ -887,7 +939,7 @@ data: {"received" if self.response is not None else "none"}
         except urllib3.exceptions.MaxRetryError:
             return None
 
-    def request_uploads(self, identifier) -> list[Upload]:
+    def request_attachments(self, identifier) -> list[Upload]:
         helper = HelperElabftw(self.api_key, self.url)
         api_client = helper.api_client
 
@@ -903,7 +955,9 @@ data: {"received" if self.response is not None else "none"}
 
         return uploads
 
-    def download_uploads(self, directory="Downloads/") -> None:
+    def download_attachments(self, directory="Downloads/") -> None:
+
+        directory = self.__file_manager.unify_directory(directory)
 
         for upload in self.response.get_attachments():
             upload_http = self._get_upload_from_api(upload, format="binary", _preload_content=False)
@@ -971,7 +1025,7 @@ data: {"received" if self.response is not None else "none"}
 
     def _open_file(self, path, open_csv=True) -> Union[str, None]:
 
-        filetype = self._analyze_filetype(path)
+        filetype = self.__file_manager.analyze_filetype(path)
 
         if filetype == "csv" and open_csv:
             return self._open_csv(path)
@@ -982,10 +1036,6 @@ data: {"received" if self.response is not None else "none"}
         else:
             self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
             return None
-
-    @staticmethod
-    def _analyze_filetype(path):
-        return path[path.rfind(".") + 1:]
 
     def _open_csv(self, path, check=True, **kwargs):
         csv_data = pd.read_csv(path, **kwargs)
@@ -1092,48 +1142,6 @@ data: {"received" if self.response is not None else "none"}
         self.clear_response()
 
         return self.working
-
-
-def list_from_string(string: str, separator="|", strict_conversion=False) -> list:
-    """
-    Splits the passed string into a list of string values using the separator provided.
-    @param string: Any string
-    @param separator: Character(s) where lines should be split
-    @param strict_conversion: If True, all strings that can not be converted to a number are set to None
-    @return: List of the separated string values
-    """
-    string = string.split(separator)
-
-    lst = []
-
-    for entry in string:
-        lst.append(try_float_conversion(entry.strip(), strict=strict_conversion))
-
-    return lst
-
-
-def try_float_conversion(string: str, allow_comma=True, strict=False) -> float or str:
-    """
-    Attempts to convert the passed string to a float.
-    @param string: String to convert to float
-    @param allow_comma: If True, string floats using commas instead of points for the decimal separator will be
-    converted as well
-    @param strict: If True, strings that could not be converted to a number are converted to None
-    @return: Float value of the string or the original string if it could not be converted to float
-    """
-    if type(string) in [float, int]:
-        return string
-    elif type(string) is not str:
-        raise ValueError
-
-    try:
-        float_value = float(string.replace(",", ".")) if allow_comma else float(string)
-        return float_value
-    except ValueError:
-        if strict:
-            return None
-        else:
-            return string
 
 
 def example_of_use():
