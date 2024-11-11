@@ -126,6 +126,26 @@ class TestELNImporter(unittest.TestCase):
         self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[0].real_name))
         self.assertTrue(os.path.exists("testfiles/downloads/" + self.uploads_response_obj[1].real_name))
 
+    # TODO
+    def test__get_upload_from_api(self):
+        pass
+
+    # TODO
+    def test_open_upload(self):
+        pass
+
+    # TODO
+    def test__open_file(self):
+        pass
+
+    # TODO
+    def test__analyze_filetype(self):
+        pass
+
+    # TODO
+    def test__open_csv(self):
+        pass
+
     def test_select_item_from_api_response(self):
         with patch("builtins.input") as mocked_selection:
             mocked_selection.return_value = "1"
