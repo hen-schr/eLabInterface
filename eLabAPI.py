@@ -21,6 +21,7 @@ from elabapi_python import Upload
 from matplotlib.table import table
 from scipy.optimize import direct
 from io import StringIO
+import numpy as np
 
 module_version = 0.1
 
@@ -349,25 +350,28 @@ class FileManager(ELNDataLogger):
 
         if path[-1] != "\\":
             path += "\\"
+        if path[0] == "\\":
+            path = path[1:]
 
         return path
 
 
 class ELNResponse(ELNDataLogger):
     """
-    A general container for a response received from the API.
+    A general container for a response received from the API with some processing functions.
     """
     def __init__(self, response: dict = None, response_id: Union[int, str] = None, silent: bool = False,
                  debug: bool = False):
         """
-        :param response: The response (in dict format) that was received from the API
-        :param response_id: The experiment id, is extracted from the metadata attribute for easier access if not specified upon creation
+        :param response:        The response (in dict format) that was received from the API
+        :param response_id:     The experiment id, is extracted from the metadata attribute for easier access if not \
+                                specified upon creation
         """
 
         super().__init__(debug, silent)
 
         # most basic properties of this class
-        self.id = response_id
+        self.id = str(response_id)
         self._response = response
 
         # for logging and debugging
@@ -394,15 +398,20 @@ class ELNResponse(ELNDataLogger):
         self._tables = None
         self._attachments = None
         self._download_directory = None
-        self.__file_manager = FileManager()
+        self.__file_manager = FileManager(silent=silent, debug=debug)
 
         if response is not None:
             self.extract_metadata()
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Summarizes the most important data of the response object.
+        """
         string = "ELNResponse object\n"
+
         for entry in self._metadata:
             string += f"\t{entry}: {self._metadata[entry]}\n" if self._metadata[entry] is not None else ""
+
         string += f"""\tbody: {len(self._response["body"].encode("utf-8"))} bytes\n"""
 
         string += f"""\tuploads: {len(self._attachments) if self._attachments is not None else "none"}\n"""
@@ -412,63 +421,71 @@ class ELNResponse(ELNDataLogger):
 
         return string
 
-    def log_to_str(self, merge: Literal["no", "timed", "sections"] = "timed") -> str:
+    def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed") -> str:
         """
-        Returns the log entries of the Response instance, as well as the attached Importer and
-        :param merge: Format of the log string. 'no' - only the response log is returned. 'timed' - all three logs are merged and sorted by time.'sections' - the three logs are displayed in separate sections
-        :return: The formatted log string
+
+        Returns the log entries of the Response instance, as well as the attached Importer and FileManager if desired.
+
+        :param style:   Format of the log string. 'plain' - only the response log is returned. 'timed' - all three logs
+                        are merged and sorted by time.'sections' - the three logs are displayed in separate sections
+        :return:        The formatted log string
         """
-        if merge == "no":
+        if style == "plain":
             return self.log
-        elif merge == "timed":
+
+        elif style == "timed":
             log = self._dissect_log(self.log, "Response")
             import_log = self._dissect_log(self._importer_log, "Importer") if self._importer_log is not None else []
             file_log = self._dissect_log(self.__file_manager.log, "Filemanager")
 
-            result = sorted(log + import_log + file_log, key=lambda x: x[0])
+            sorted_log_entries = sorted(log + import_log + file_log, key=lambda time: time[0])
 
             log_string = ""
 
-            for line in result:
-                log_string += line[0].strftime("%y-%m-%d %H:%H:%S.%f") + "\t" + line[1] + "\n"
+            for entry in sorted_log_entries:
+                log_string += entry[0].strftime("%y-%m-%d %H:%H:%S.%f") + "\t" + entry[1] + "\n"
 
             return log_string
-        elif merge == "sections":
-            log = self.log
-            import_log = self._importer_log if self._importer_log is not None else ""
-            file_log = self.__file_manager.log
+
+        elif style == "sections":
 
             null_message = "\nNothing here"
+
+            log = self.log
+            import_log = self._importer_log if self._importer_log is not None else null_message
+            file_log = self.__file_manager.log if self.__file_manager is not None else null_message
 
             log_string = f"""
 === Response ===
 {log}
             
 === Importer ===
-{import_log if import_log != "" else null_message}
+{import_log}
             
 === FileManager ===
-{file_log if file_log != "" else null_message}
+{file_log}
             """
 
             return log_string
 
     @staticmethod
-    def _dissect_log(log: str, prefix=None) -> list[tuple[datetime.time, str]]:
+    def _dissect_log(log: str, specification=None) -> list[tuple[datetime.time, str]]:
         """
-        Separates a log string into a list of time-resolved log entries
+
+        Separates a log string into a list of time-resolved log entries.
+
         :param log: The log string to process
-        :param prefix: Is prepended to the log message to specify its origin or category
+        :param specification: Is prepended to the log message to specify its origin or category
         :return: A list of date-message-tuples
         """
-        prefix = f"{prefix}\t" if prefix is not None else ""
+        specification = f"{specification}\t" if specification is not None else ""
 
         log_lines = []
         for line in log.strip("\n ").split("\n"):
             try:
                 split_line = line.split("\t", 1)
                 date = datetime.strptime(split_line[0], "%y-%m-%d %H:%M:%S.%f")
-                content = f"{prefix}" + split_line[1]
+                content = f"{specification}" + split_line[1]
                 log_lines.append((date, content))
             except ValueError:
                 pass
@@ -503,10 +520,33 @@ class ELNResponse(ELNDataLogger):
         else:
             raise AttributeError(f"ELNResponse has no metadata element '{element}'")
 
-    def add_importer_log(self, log):
-        self._importer_log = log
+    def clear(self, selector: Literal["all", "tables", "attachments", "metadata"] = "all") -> None:
+        """
+        Deletes some data of the ELN response.
+        :param selector:
+        :return:
+        """
+        if selector == "all":
+            self._tables = None
+            self._attachments = None
+            self._download_directory = None
+        elif selector == "tables":
+            self._tables = None
+        elif selector == "attachments":
+            self._attachments = None
+            self._download_directory = None
+        elif selector == "metadata":
+            self.set_metadata({})
 
-    def list_uploads(self):
+        self._log(f"cleared {selector} of response", "PRC")
+
+    def add_importer_log(self, importer_log):
+        self._importer_log = importer_log
+
+    def list_attachments(self):
+        """
+        Prints a list of files attached to the experiment.
+        """
         if self._attachments is None:
             return None
         string = "Attached uploads:\n"
@@ -516,12 +556,19 @@ class ELNResponse(ELNDataLogger):
         self._log(string, "USR")
 
     def toggle_debug(self, state: bool = None):
+
         if state is None:
             self._debug = not self._debug
+
         else:
             self._debug = state
 
-    def response_to_str(self):
+    def response_to_str(self, indent: str = 4) -> str:
+        """
+        Converts the response into a formatted json string.
+        :param indent: The indentation to use when formatting the json string
+        :return: The converted response data in string format
+        """
         if self._response is not None:
             string = json.dumps(self._response, indent=4)
 
@@ -648,6 +695,9 @@ class ELNResponse(ELNDataLogger):
             decimal = "."
 
         tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
+        #tables_pd_numeric = []
+        #for table in tables_pd:
+            #tables_pd_numeric.append(table.apply(lambda i: self._to_numeric(i)))
 
         if reformat:
             tables_pd = self._reformat_tables(tables_pd)
@@ -1091,12 +1141,9 @@ def example_of_use():
 
     importer.attach_api_key_from_file(
         file="YOUR-API-KEY-FILE")
-    importer.configure_api(url="YOUR-API-HOST-URL", permissions="read only")
+    importer.configure_api(url="YOUR-API-HOST-URL", permissions="read only", debug=True)
 
     importer.ping_api()
-
-    # check state of the importer
-    print(importer)
 
     # request experiment by searching for a term in the experiments' titles
     experiment = importer.request(query="YOUR-QUERY", limit=1)
