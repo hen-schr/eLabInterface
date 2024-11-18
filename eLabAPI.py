@@ -72,6 +72,22 @@ class TabularData:
         if commands is not None:
             self.apply_commands(commands)
 
+    def __setitem__(self, key, value):
+        if type(self._data) is pd.DataFrame:
+            self._data[key] = value
+        elif type(self._data) is dict:
+            self._data[key] = value
+        else:
+            raise AttributeError(f"Values can not be set for data of type {type(self._data)}")
+
+    def __getitem__(self, item):
+        if type(self._data) is pd.DataFrame:
+            return self._data[item]
+        elif type(self._data) is dict:
+            return self._data[item]
+        else:
+            raise AttributeError(f"Values can not be retreived for data of type {type(self._data)}")
+
     def width(self):
         if self._data is not None:
             return self._data.shape[1]
@@ -101,9 +117,11 @@ class TabularData:
         for command in commands:
             pass
 
-    def plot(self, x: Union[str, int], y: Union[str, int], ax=None, *kwargs):
+    def plot(self, x: Union[str, int], y: Union[str, int], ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
+        if type(self._data) is pd.DataFrame:
+            self._data.plot(x=x, y=y, ax=ax, **kwargs)
 
     def apply_formula_to_column(self, formula: staticmethod, column, new_column_name):
         pass
@@ -713,9 +731,6 @@ class ELNResponse(ELNDataLogger):
             force_numeric = False
 
         tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
-        #tables_pd_numeric = []
-        #for table in tables_pd:
-            #tables_pd_numeric.append(table.apply(lambda i: self._to_numeric(i)))
 
         if reformat:
             tables_pd = self._reformat_tables(tables_pd, force_numeric=force_numeric)
@@ -795,6 +810,24 @@ class ELNResponse(ELNDataLogger):
             for table in self._tables:
                 if table.title == selection:
                     return table.data()
+
+    def return_table(self, selection: Union[str, int]) -> pd.DataFrame:
+        if type(selection) is int:
+            try:
+                return self._tables[selection]
+            except IndexError:
+                self._log("Error for selection: index is out of range!", "USR")
+        else:
+            for table in self._tables:
+                if table.title == selection:
+                    return table
+
+    @property
+    def tables(self):
+        table_dict = {}
+        for table in self._tables:
+            table_dict[table.title] = table
+        return table_dict
 
     def save_to_csv(self, file, index=None, separator=";"):
 
