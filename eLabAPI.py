@@ -802,18 +802,13 @@ class ELNResponse(ELNDataLogger):
         if process:
             self.extract_metadata()
 
-    def as_dict(self, element: str = None):
+    @property
+    def as_dict(self):
         eln_dict = self._metadata
         if self._tables is not None:
             eln_dict.update(self._get_dict_from_tables())
 
-        if element is None:
-            return eln_dict
-        else:
-            try:
-                return eln_dict[element]
-            except KeyError:
-                self._log(f"could not find element '{element}' in response dictionary", "USR")
+        return eln_dict
 
     def _get_dict_from_tables(self):
         table_dict = {}
