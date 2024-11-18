@@ -23,12 +23,17 @@ experiment.save_to_json("Downloads/Test/Demo.json", indent=4)
 
 experiment.read_response_from_json("C:\\Users\\henri\\Downloads\\2024-11-11-224705-export\\2024-11-11-224705-export\\2024-10-13 - ELN-Demo - affb1138\\export-elabftw.json")
 
-experiment.extract_tables(output_format="dataframes", decimal=",")
+experiment.extract_tables(output_format="dataframes", decimal=",", force_numeric=True)
 
-print(experiment.as_dict("pressure / bar"))
-print(experiment.as_dict("device"))
+#print(experiment.as_dict["pressure / bar"])
+#print(experiment.as_dict["device"])
 
-#data = experiment.return_table_as_pd("some time-resolved measurement data")
+data = experiment.return_table_as_pd("some time-resolved measurement data")
+
+data["mean abs"] = data["absorbance"].mean(axis=1)
+
+data.plot(x="time / h", y="mean abs")
+plt.show()
 
 #data = data.apply(lambda i: pd.to_numeric(i, errors="coerce"))
 

@@ -707,13 +707,18 @@ class ELNResponse(ELNDataLogger):
         else:
             decimal = "."
 
+        if "force_numeric" in kwargs:
+            force_numeric = kwargs["force_numeric"]
+        else:
+            force_numeric = False
+
         tables_pd = pd.read_html(StringIO(html_body), decimal=decimal, thousands=None)
         #tables_pd_numeric = []
         #for table in tables_pd:
             #tables_pd_numeric.append(table.apply(lambda i: self._to_numeric(i)))
 
         if reformat:
-            tables_pd = self._reformat_tables(tables_pd)
+            tables_pd = self._reformat_tables(tables_pd, force_numeric=force_numeric)
 
         if output_format == "dataframes":
             self._tables = tables_pd
@@ -726,12 +731,12 @@ class ELNResponse(ELNDataLogger):
                     self._tables.append(table.values.tolist())
             return self._tables
 
-    def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame]) -> Union[TabularData, list[TabularData]]:
+    def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame], force_numeric=False) -> Union[TabularData, list[TabularData]]:
 
         if type(tables) is list:
             conv_tables = []
             for table in tables:
-                conv_tables.append(self._reformat_tables(table))
+                conv_tables.append(self._reformat_tables(table, force_numeric=force_numeric))
             return conv_tables
 
         converted_table = TabularData(data=tables)
@@ -748,6 +753,21 @@ class ELNResponse(ELNDataLogger):
             converted_table.set_headers(headers)
             converted_table.set_data(converted_table.data().drop(0))
             converted_table.set_data(converted_table.data().reset_index(drop=True))
+
+            numeric_table = pd.DataFrame()
+
+            for i, column in enumerate(converted_table.data().columns.values):
+                try:
+                    numeric_table.insert(i, column, converted_table.data().iloc[:, i].apply(pd.to_numeric, errors="raise"), True)
+                except ValueError:
+                    if force_numeric:
+                        numeric_table.insert(i, column,
+                                             converted_table.data().iloc[:, i].apply(pd.to_numeric, errors="coerce"),
+                                             True)
+                    else:
+                        numeric_table.insert(i, column, converted_table.data().iloc[:, i], True)
+
+            converted_table.set_data(numeric_table)
 
         return converted_table
 

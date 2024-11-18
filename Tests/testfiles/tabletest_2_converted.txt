@@ -1,6 +1,6 @@
-    F     G       H
-0   4   4.5       g
-1  .3  0.24  lipsum
+     F     G       H
+0  4.0  4.50       g
+1  0.3  0.24  lipsum
 
   Nr. param 1 param 2
 0  S1       9       2
