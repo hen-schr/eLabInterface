@@ -40,13 +40,14 @@ class ELNDataLogger:
         self._debug = debug
         self._silent = silent
 
-        self._log(f"Created instance of {self.__class__.__name__}", "PRC")
+        self._log(f"created instance of {self.__class__.__name__}", "PRC")
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR", "COM"] = None) -> None:
         """
         Logs important events of data processing and other activities
         :param message: Message to add to the log, will be automatically timestamped
-        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message)
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message),
+        COM (communication)
         """
         self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
                     + f"""\t{category if category is not None else "   "}\t{message}"""
@@ -85,10 +86,10 @@ class TabularData(ELNDataLogger):
     def __setitem__(self, key, value):
         if type(self._data) is pd.DataFrame:
             self._data[key] = value
-            self._log(f"Created new column '{key}'", "PRC")
+            self._log(f"created new column '{key}'", "PRC")
         elif type(self._data) is dict:
             self._data[key] = value
-            self._log(f"Created new entry '{key}'", "PRC")
+            self._log(f"created new entry '{key}'", "PRC")
         else:
             raise AttributeError(f"Values can not be set for data of type {type(self._data)}")
 
@@ -118,8 +119,18 @@ class TabularData(ELNDataLogger):
             return None
 
     def to_string(self) -> str:
-        if type(self._data) == pd.DataFrame:
+        if type(self._data) is pd.DataFrame:
             return self._data.to_string()
+
+    def convert_to_list(self):
+        self._data = self.to_list()
+
+    def to_list(self) -> list:
+        if type(self._data) is pd.DataFrame:
+            list_data = []
+            for i in range(len(self._data.columns)):
+                list_data.append(self._data.iloc[:, i].tolist())
+            return list_data
 
     def set_data(self, data: Union[pd.DataFrame, pd.Series, list, Any]):
         self._data = data
@@ -193,20 +204,23 @@ class TabularData(ELNDataLogger):
             ax = plt.gca()
         if type(self._data) is pd.DataFrame:
             self._data.plot(x=x, y=y, ax=ax, **kwargs)
+        elif type(self._data) is list:
+            buffer = pd.DataFrame({1: self._data[x], 2: self._data[y]})
+            buffer.plot(x=1, y=2, ax=ax, **kwargs)
 
     def apply_formula_to_column(self, formula: staticmethod, column: Union[int, str], new_column_name: str, **kwargs):
         if type(self._data) is pd.DataFrame:
             arguments = ", ".join(f"{key}={value}" for key, value in kwargs.items())
             if type(column) is str:
-                self._log(f"Applying '{formula.__name__}' to column '{column}' with arguments '{arguments}'")
+                self._log(f"applying '{formula.__name__}' to column '{column}' with arguments '{arguments}' -> '{new_column_name}'", "PRC")
                 self[new_column_name] = self._data[column].apply(formula, **kwargs)
             elif type(column) is int:
-                self._log(f"Applying function '{formula.__name__}' to column '{self._data.columns.values[column]}' with arguments '{arguments}'")
+                self._log(f"applying function '{formula.__name__}' to column '{self._data.columns.values[column]}' with arguments '{arguments}' -> '{new_column_name}'", "PRC")
                 self[new_column_name] = self._data.iloc[:, column].apply(formula, **kwargs)
             else:
                 raise ValueError
         else:
-            self._log("This function is only available for DataFrames at the moment", "USR")
+            self._log("this function is not available for this type of data at the moment", "USR")
 
 
 class MDInterpreter:
