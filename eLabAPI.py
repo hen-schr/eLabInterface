@@ -54,10 +54,20 @@ class ELNDataLogger:
         if (not self._silent and category == "USR") or self._debug:
             print(message)
 
+    def toggle_debug(self, state: bool = None):
 
-class TabularData:
-    def __init__(self, data: Union[pd.DataFrame, pd.Series, list, dict, Any] = None, metadata: dict = None, commands=None,
-                 title: str = None, datatype: Literal["sample list", "element value", "array"] = None):
+        if state is None:
+            self._debug = not self._debug
+
+        else:
+            self._debug = state
+
+
+class TabularData(ELNDataLogger):
+    def __init__(self, data: Union[pd.DataFrame, pd.Series, list, dict, Any] = None, metadata: dict = None,
+                 commands=None, title: str = None, datatype: Literal["sample list", "element value", "array"] = None, debug=False, silent=False):
+
+        super().__init__(silent=silent, debug=debug)
         self._data = data
         self._metadata = metadata
         self.title = title
@@ -75,25 +85,32 @@ class TabularData:
     def __setitem__(self, key, value):
         if type(self._data) is pd.DataFrame:
             self._data[key] = value
+            self._log(f"Created new column '{key}'", "PRC")
         elif type(self._data) is dict:
             self._data[key] = value
+            self._log(f"Created new entry '{key}'", "PRC")
         else:
             raise AttributeError(f"Values can not be set for data of type {type(self._data)}")
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Union[str, int]):
         if type(self._data) is pd.DataFrame:
-            return self._data[item]
+            if type(item) is str:
+                return self._data[item]
+            else:
+                return self._data.iloc[:, item]
         elif type(self._data) is dict:
             return self._data[item]
         else:
-            raise AttributeError(f"Values can not be retreived for data of type {type(self._data)}")
+            raise AttributeError(f"Values can not be retrieved for data of type {type(self._data)}")
 
+    @property
     def width(self):
         if self._data is not None:
             return self._data.shape[1]
         else:
             return None
 
+    @property
     def height(self):
         if self._data is not None:
             return self._data.shape[0]
@@ -113,6 +130,60 @@ class TabularData:
     def data(self):
         return self._data
 
+    def convert_to_numeric(self, force=False, null_value=None):
+
+        converted = None
+
+        if type(self._data) is pd.DataFrame:
+            converted = self._convert_pd_to_numeric(force=force)
+        elif type(self._data) is list:
+            converted = self._convert_list_to_numeric(force=force, null_value=null_value)
+
+        if converted is not None:
+            self._data = converted
+            return True
+        else:
+            return False
+
+    def _convert_pd_to_numeric(self, force=False) -> pd.DataFrame:
+
+        numeric_table = pd.DataFrame()
+
+        for i, column in enumerate(self._data.columns.values):
+            try:
+                numeric_table.insert(i, column, self._data.iloc[:, i].apply(pd.to_numeric, errors="raise"),
+                                     True)
+            except ValueError:
+                if force:
+                    numeric_table.insert(i, column,
+                                         self._data.iloc[:, i].apply(pd.to_numeric, errors="coerce"),
+                                         True)
+                else:
+                    numeric_table.insert(i, column, self._data.iloc[:, i], True)
+
+        return numeric_table
+
+    def _convert_list_to_numeric(self, data=None, force=False, null_value=None) -> list:
+
+        converted_list = []
+
+        if data is None:
+            data = self._data
+
+        for item in data:
+            if type(item) is list:
+                converted_list.append(self._convert_list_to_numeric(data=item, force=force, null_value=null_value))
+            else:
+                try:
+                    converted_list.append(float(item))
+                except ValueError:
+                    if force:
+                        converted_list.append(null_value)
+                    else:
+                        converted_list.append(item)
+
+        return converted_list
+
     def apply_commands(self, commands):
         for command in commands:
             pass
@@ -123,8 +194,19 @@ class TabularData:
         if type(self._data) is pd.DataFrame:
             self._data.plot(x=x, y=y, ax=ax, **kwargs)
 
-    def apply_formula_to_column(self, formula: staticmethod, column, new_column_name):
-        pass
+    def apply_formula_to_column(self, formula: staticmethod, column: Union[int, str], new_column_name: str, **kwargs):
+        if type(self._data) is pd.DataFrame:
+            arguments = ", ".join(f"{key}={value}" for key, value in kwargs.items())
+            if type(column) is str:
+                self._log(f"Applying '{formula.__name__}' to column '{column}' with arguments '{arguments}'")
+                self[new_column_name] = self._data[column].apply(formula, **kwargs)
+            elif type(column) is int:
+                self._log(f"Applying function '{formula.__name__}' to column '{self._data.columns.values[column]}' with arguments '{arguments}'")
+                self[new_column_name] = self._data.iloc[:, column].apply(formula, **kwargs)
+            else:
+                raise ValueError
+        else:
+            self._log("This function is only available for DataFrames at the moment", "USR")
 
 
 class MDInterpreter:
@@ -746,7 +828,7 @@ class ELNResponse(ELNDataLogger):
                     self._tables.append(table.values.tolist())
             return self._tables
 
-    def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame], force_numeric=False) -> Union[TabularData, list[TabularData]]:
+    def _reformat_tables(self, tables: Union[list[pd.DataFrame], pd.DataFrame], force_numeric=False, null_value=None) -> Union[TabularData, list[TabularData]]:
 
         if type(tables) is list:
             conv_tables = []
@@ -769,20 +851,7 @@ class ELNResponse(ELNDataLogger):
             converted_table.set_data(converted_table.data().drop(0))
             converted_table.set_data(converted_table.data().reset_index(drop=True))
 
-            numeric_table = pd.DataFrame()
-
-            for i, column in enumerate(converted_table.data().columns.values):
-                try:
-                    numeric_table.insert(i, column, converted_table.data().iloc[:, i].apply(pd.to_numeric, errors="raise"), True)
-                except ValueError:
-                    if force_numeric:
-                        numeric_table.insert(i, column,
-                                             converted_table.data().iloc[:, i].apply(pd.to_numeric, errors="coerce"),
-                                             True)
-                    else:
-                        numeric_table.insert(i, column, converted_table.data().iloc[:, i], True)
-
-            converted_table.set_data(numeric_table)
+            converted_table.convert_to_numeric(force=force_numeric, null_value=null_value)
 
         return converted_table
 
