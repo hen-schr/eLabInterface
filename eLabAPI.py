@@ -42,7 +42,7 @@ class ELNDataLogger:
 
         self._log(f"Created instance of {self.__class__.__name__}", "PRC")
 
-    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR", "COM"] = None) -> None:
         """
         Logs important events of data processing and other activities
         :param message: Message to add to the log, will be automatically timestamped
