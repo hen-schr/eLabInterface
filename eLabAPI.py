@@ -949,7 +949,7 @@ class ELNResponse(ELNDataLogger):
     def _get_dict_from_tables(self):
         table_dict = {}
         for table in self._tables:
-            if table.width() == 2:
+            if table.width == 2:
                 table_dict.update(dict(table._data.values))
 
         return  table_dict
