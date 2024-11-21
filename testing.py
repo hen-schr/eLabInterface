@@ -5,6 +5,10 @@ from datetime import datetime
 import eLabAPI
 import matplotlib.pyplot as plt
 
+def multiply(x, factor=2):
+    y = x ** factor
+    return y
+
 from eLabAPI import ELNImporter
 
 importer = eLabAPI.ELNImporter(debug=True)
@@ -13,27 +17,29 @@ importer = eLabAPI.ELNImporter(debug=True)
 # importer.attach_api_key_from_file("C:/Users/Henrik Schröter/Unibox Rostock/Promotion/Datenauswertung/Python/NanoData/eLabAPI/API_key.txt")
 importer.attach_api_key_from_file("C:/Users/henri/Unibox Rostock/Promotion/Datenauswertung/Python/NanoData/eLabAPI/API_key.txt")
 
-importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments", permissions="read only")
+importer.configure_api(url="https://eln.elaine.uni-rostock.de/api/v2/experiments", permissions="read only", verify_communication=False)
 
-experiment = importer.request(advanced_query="id:5693", limit=1, download_attachments="Downloads/Test")
+experiment = importer.request(advanced_query="id:5830", limit=1, download_attachments="Downloads/Test")
 experiment.toggle_debug()
 
-print(experiment.log_to_str(style="timed"))
 experiment.save_to_json("Downloads/Test/Demo.json", indent=4)
 
-experiment.read_response_from_json("C:\\Users\\henri\\Downloads\\2024-11-11-224705-export\\2024-11-11-224705-export\\2024-10-13 - ELN-Demo - affb1138\\export-elabftw.json")
+#experiment.read_response_from_json("C:\\Users\\henri\\Downloads\\2024-11-11-224705-export\\2024-11-11-224705-export\\2024-10-13 - ELN-Demo - affb1138\\export-elabftw.json")
 
 experiment.extract_tables(output_format="dataframes", decimal=",", force_numeric=True)
 
-#print(experiment.as_dict["pressure / bar"])
-#print(experiment.as_dict["device"])
+#data = experiment.tables["some time-resolved measurement data"]
 
-data = experiment.return_table_as_pd("some time-resolved measurement data")
+print(experiment.as_dict(duplicate_handling="user selection"))
 
-data["mean abs"] = data["absorbance"].mean(axis=1)
+print(experiment.log_to_str(style="timed"))
 
-data.plot(x="time / h", y="mean abs")
-plt.show()
+#experiment.tables["some time-resolved measurement data"]["mean abs"] = experiment.tables["some time-resolved measurement data"]["absorbance"].mean(axis=1)
+
+#experiment.tables["some time-resolved measurement data"].plot(x="time / h", y="mean abs", kind="scatter")
+#data["mean abs"] = data["absorbance"].mean(axis=1)
+
+#data.plot(x="time / h", y=2)
 
 #data = data.apply(lambda i: pd.to_numeric(i, errors="coerce"))
 

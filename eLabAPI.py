@@ -42,6 +42,31 @@ class ELNDataLogger:
 
         self._log(f"created instance of {self.__class__.__name__}", "PRC")
 
+    def input(self, message, input_type: Literal[int, float] = None, value_range: tuple[Union[float, str], Union[float, str]] = None) -> Union[str, int, float]:
+        while True:
+            user_input = input(message)
+            if input_type is None:
+                self._log(f"User input: {user_input}", "PRC")
+                return user_input
+            else:
+                try:
+                    user_input = input_type(user_input)
+
+                    if value_range is not None:
+                        if value_range[0] <= user_input <= value_range[1]:
+                            self._log(f"User input: {user_input}", "PRC")
+                            return user_input
+                        else:
+                            print(f"invalid input: enter a value between {value_range[0]} and {value_range[1]}")
+                    else:
+                        self._log(f"User input: {user_input}", "PRC")
+                        return user_input
+
+                except ValueError:
+                    print(f"invalid input: type {input_type.__name__} required")
+
+
+
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR", "COM"] = None) -> None:
         """
         Logs important events of data processing and other activities
@@ -548,6 +573,13 @@ class ELNResponse(ELNDataLogger):
 
         return string
 
+    def __getitem__(self, item):
+        eln_dict = self._metadata
+        if self._tables is not None:
+            eln_dict.update(self._get_dict_from_tables(duplicate_handling="use first"))
+
+        return eln_dict
+
     def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed") -> str:
         """
 
@@ -938,19 +970,36 @@ class ELNResponse(ELNDataLogger):
         if process:
             self.extract_metadata()
 
-    @property
-    def as_dict(self):
+    def as_dict(self, duplicate_handling: Literal["use first", "use last", "user selection"] = "use first"):
         eln_dict = self._metadata
         if self._tables is not None:
-            eln_dict.update(self._get_dict_from_tables())
+            eln_dict.update(self._get_dict_from_tables(duplicate_handling=duplicate_handling))
 
         return eln_dict
 
-    def _get_dict_from_tables(self):
+    def _get_dict_from_tables(self, duplicate_handling: Literal["use last", "use first", "user selection"] = "true"):
         table_dict = {}
+
         for table in self._tables:
             if table.width == 2:
-                table_dict.update(dict(table._data.values))
+                table_data = dict(table._data.values)
+                for element in table_data:
+                    if element not in table_dict:
+                        table_dict[element] = table_data[element]
+                    elif element in table_dict:
+                        self._log(f"encountered duplicate metadata entry '{element}'", "WRN")
+                        if duplicate_handling == "use last":
+                            table_dict[element] = table_data[element]
+                            self._log(f"value for '{element}' was overwritten", "WRN")
+                        elif duplicate_handling == "use first":
+                            self._log(f"using first value for '{element}'", "PRC")
+                        elif duplicate_handling == "user selection":
+                            self._log(f"please select value to use for {element}", "USR")
+                            possibilities = [table_dict[element], table_data[element]]
+                            self._log(f"0\t{possibilities[0]} (current)", "USR")
+                            self._log(f"1\t{possibilities[1]} (from table '{table.title}')", "USR")
+                            selection = self.input("select by index: ", input_type=int, value_range=(0, 1))
+                            table_dict[element] = possibilities[selection]
 
         return  table_dict
 
