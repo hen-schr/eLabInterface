@@ -472,8 +472,20 @@ class FileManager(ELNDataLogger):
         elif type(data) is TabularData:
             data._data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
 
-    def open_csv(self, path, check=True, **kwargs):
-        csv_data = pd.read_csv(path, **kwargs)
+    def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", **kwargs):
+
+        if remove_metadata:
+            raw_content = self.open_file(path, open_as="txt")
+            raw_content = raw_content.split(metadata_delimiter)
+            if len(raw_content) == 1:
+                csv_data = pd.read_csv(StringIO(raw_content[0]), **kwargs)
+            elif len(raw_content) == 3:
+                csv_data = pd.read_csv(StringIO(raw_content[2]), **kwargs)
+            else:
+                csv_data = pd.read_csv(path, **kwargs)
+        else:
+            csv_data = pd.read_csv(path, **kwargs)
+
         if check:
             if csv_data.shape[1] == 1:
                 self._log("CSV file seems to have only one column:", "USR")
@@ -578,7 +590,7 @@ class ELNResponse(ELNDataLogger):
         if self._tables is not None:
             eln_dict.update(self._get_dict_from_tables(duplicate_handling="use first"))
 
-        return eln_dict
+        return eln_dict[item]
 
     def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed") -> str:
         """
@@ -788,7 +800,7 @@ class ELNResponse(ELNDataLogger):
 
         experiment_type = "unknown"
 
-        if "metadata" in self._response:
+        if "metadata" in self._response and self._response["metadata"] is not None:
             metadata = json.loads(self._response["metadata"])
         else:
             self._log("could not find metadata in entry, experiment entry might be incomplete", "WRN")
