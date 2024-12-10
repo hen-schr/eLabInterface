@@ -713,7 +713,7 @@ class ELNResponse(ELNDataLogger):
     def add_importer_log(self, importer_log):
         self._importer_log = importer_log
 
-    def list_attachments(self):
+    def list_attachments(self, selector=None):
         """
         Prints a list of files attached to the experiment.
         """
@@ -721,7 +721,10 @@ class ELNResponse(ELNDataLogger):
             return None
         string = "Attached uploads:\n"
         for upload in self._attachments:
-            string += "\t" + upload.real_name + "\n"
+            if selector is None:
+                string += "\t" + upload.real_name + "\n"
+            if selector is not None and upload.real_name[-len(selector):] == selector:
+                string += "\t" + upload.real_name + "\n"
 
         self._log(string, "USR")
 
@@ -854,7 +857,6 @@ class ELNResponse(ELNDataLogger):
 
     def open_upload(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
         return self.open_attachment(selection=selection, open_as=open_as, **kwargs)
-
 
     def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True, reset=True, **kwargs):
 
