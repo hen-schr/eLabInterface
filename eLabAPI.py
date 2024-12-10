@@ -1341,7 +1341,7 @@ data: {"received" if self.response is not None else "none"}
 
 def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=None, download_directory=None,
                   save_to_json=True) -> [ELNResponse, str]:
-    importer = ELNImporter(debug=True)
+    importer = ELNImporter(silent=True)
     importer.attach_api_key_from_file(api_file)
     importer.configure_api(url=api_url, permissions="read only",
                            verify_communication=False)
@@ -1359,6 +1359,8 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
             print(f"Directory '{download_directory}' already exists.")
         except PermissionError:
             print(f"Permission denied: Unable to create '{download_directory}'.")
+
+    importer.toggle_debug(True)
 
     experiment = importer.request(advanced_query=f"id:{experiment_id}", download_attachments=download_directory)
 
