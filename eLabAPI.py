@@ -19,7 +19,6 @@ import urllib3
 import matplotlib.pyplot as plt
 from elabapi_python import Upload
 from matplotlib.table import table
-from scipy.optimize import direct
 from io import StringIO
 import numpy as np
 
@@ -819,7 +818,7 @@ class ELNResponse(ELNDataLogger):
 
         self._log(f"identified experiment type: {experiment_type}", "PRC")
 
-    def open_upload(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
+    def open_attachment(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
         """
         Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
         :param selection: The name of the upload file (i.e. 'example.txt') or its index
@@ -852,6 +851,10 @@ class ELNResponse(ELNDataLogger):
         directory = self.get_download_directory()
 
         return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
+
+    def open_upload(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
+        return self.open_attachment(selection=selection, open_as=open_as, **kwargs)
+
 
     def extract_tables(self, output_format: Literal["list", "dataframes"] = "dataframes", reformat=True, reset=True, **kwargs):
 
@@ -1334,6 +1337,35 @@ data: {"received" if self.response is not None else "none"}
         self.clear_response()
 
         return self.working
+
+
+def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=None, download_directory=None,
+                  save_to_json=True) -> [ELNResponse, str]:
+    importer = ELNImporter(debug=True)
+    importer.attach_api_key_from_file(api_file)
+    importer.configure_api(url=api_url, permissions="read only",
+                           verify_communication=False)
+
+    experiment = importer.request(advanced_query=f"id:{experiment_id}")
+
+    if experiment_title is None:
+        experiment_title = experiment.get_metadata("title").split(" ")[0]
+    if download_directory is None:
+        download_directory = "Downloads/" + experiment_title
+        try:
+            os.mkdir("./" + download_directory)
+            print("PL")
+        except FileExistsError:
+            print(f"Directory '{download_directory}' already exists.")
+        except PermissionError:
+            print(f"Permission denied: Unable to create '{download_directory}'.")
+
+    experiment = importer.request(advanced_query=f"id:{experiment_id}", download_attachments=download_directory)
+
+    if save_to_json:
+        experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
+
+    return experiment, download_directory
 
 
 def example_of_use():
