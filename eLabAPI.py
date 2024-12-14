@@ -508,11 +508,11 @@ class FileManager(ELNDataLogger):
         :param path: Absolute or relative path to the directory
         :return: Path string in the format 'path/to/directory/'
         """
-        path = path.replace("/", "\\")
+        path = path.replace("\\", "/")
 
-        if path[-1] != "\\":
-            path += "\\"
-        if path[0] == "\\":
+        if path[-1] != "/":
+            path += "/"
+        if path[0] == "/":
             path = path[1:]
 
         return path
@@ -1085,7 +1085,7 @@ data: {"received" if self.response is not None else "none"}
             elif advanced_query is not None:
                 self._log(f"requesting data: q={advanced_query}, limit={limit}", "COM")
                 raw_items_list = items.read_items(_preload_content=False, limit=limit,
-                                              extended=advanced_query.replace(" ", ""))
+                                              extended=advanced_query.replace(" ", "").strip())
             else:
                 self._log(f"requesting data: limit={limit}", "COM")
                 raw_items_list = items.read_items(_preload_content=False, limit=limit)
@@ -1317,6 +1317,8 @@ data: {"received" if self.response is not None else "none"}
                 self.api_key = readfile.read()
 
             self._log(f"read API key from file: {file}", "FIL")
+        else:
+            self._log(f"file '{file}' does not exist", "FIL")
 
     def clear_response(self):
         self.response = None
@@ -1356,7 +1358,6 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
         download_directory = "Downloads/" + experiment_title
         try:
             os.mkdir("./" + download_directory)
-            print("PL")
         except FileExistsError:
             print(f"Directory '{download_directory}' already exists.")
         except PermissionError:
