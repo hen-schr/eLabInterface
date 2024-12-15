@@ -18,9 +18,7 @@ import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
 from elabapi_python import Upload
-from matplotlib.table import table
 from io import StringIO
-import numpy as np
 
 module_version = 0.1
 
@@ -41,7 +39,21 @@ class ELNDataLogger:
 
         self._log(f"created instance of {self.__class__.__name__}", "PRC")
 
-    def input(self, message, input_type: Literal[int, float] = None, value_range: tuple[Union[float, str], Union[float, str]] = None) -> Union[str, int, float]:
+    def input(self, message,
+              input_type: Literal["int", "float", "str"] = None,
+              value_range: tuple[Union[float, str], Union[float, str]] = None) -> Union[str, int, float]:
+        """
+        Assures that the user input was supplied in the correct type and directly converts it.
+        :param message: message to display in the console, see builtins.input
+        :param input_type: value type the input is converted to
+        :param value_range: maximum and minimum allowed value for the input (for float and int)
+        :return: User input in the desired format
+        """
+
+        type_dict = {"int": int, "float": float, "str": str}
+
+        input_type = type_dict[input_type]
+
         while True:
             user_input = input(message)
             if input_type is None:
@@ -1015,7 +1027,7 @@ class ELNResponse(ELNDataLogger):
                             possibilities = [table_dict[element], table_data[element]]
                             self._log(f"0\t{possibilities[0]} (current)", "USR")
                             self._log(f"1\t{possibilities[1]} (from table '{table.title}')", "USR")
-                            selection = self.input("select by index: ", input_type=int, value_range=(0, 1))
+                            selection = self.input("select by index: ", input_type="int", value_range=(0, 1))
                             table_dict[element] = possibilities[selection]
 
         return  table_dict
