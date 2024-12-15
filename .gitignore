@@ -1,5 +1,6 @@
 *.xml
 .idea
+.venv
 elab
 Downloads
 API_Key.txt
