@@ -7,7 +7,7 @@ from elabapi_python import Upload
 
 import eLabAPI
 from unittest.mock import patch
-from urllib3 import HTTPResponse, BaseHTTPResponse
+from urllib3 import HTTPResponse
 import os
 import urllib3
 
@@ -267,7 +267,7 @@ class TestELNResponse(unittest.TestCase):
 
             self.response._download_directory = directory
 
-            self.assertEqual("Downloads\\", self.response.get_download_directory())
+            self.assertEqual("Downloads/", self.response.get_download_directory())
 
     def test_set_metadata(self):
 
