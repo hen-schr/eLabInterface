@@ -524,8 +524,6 @@ class FileManager(ELNDataLogger):
 
         if path[-1] != "/":
             path += "/"
-        if path[0] == "/":
-            path = path[1:]
 
         return path
 
@@ -1384,6 +1382,8 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
 
     if save_to_json:
         experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
+
+    experiment.add_metadata("short title", experiment_title)
 
     return experiment, download_directory
 
