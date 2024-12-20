@@ -2,6 +2,37 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+module_version = 0.1
+
+
+class ProcessingLogger:
+    def __init__(self, template=None, directory=None):
+        self.template = template
+        self.file_comments =  {"raw": "", "processed": ""}
+        self.directory = directory
+
+    def savefig(self, filename, directory=None, comment=None, category="processed", **kwargs):
+
+        plt.savefig(directory + filename, **kwargs)
+
+        if comment is None:
+            return True
+
+        if directory is None:
+            directory = self.directory
+        if directory is None:
+            directory = ""
+
+        if directory[-1] != "/":
+            directory += "/"
+
+        comment_str = f"- `{filename}`: {comment}\n"
+
+        self.file_comments[category] = self.file_comments[category] + comment_str
+
+
+
+
 def return_slice_of_data(x, y, interval):
 
     actual_interval = [0, 0]
