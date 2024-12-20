@@ -990,6 +990,8 @@ class ELNResponse(ELNDataLogger):
         with open(path, "w") as writefile:
             json.dump(self._response, writefile, **kwargs)
 
+        self._log(f"wrote ELN entry to file: {path}", "FIL")
+
     def read_response_from_json(self, file, process=True):
         with open(file, "r") as readfile:
             response = json.load(readfile)
