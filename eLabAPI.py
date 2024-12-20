@@ -1358,8 +1358,8 @@ data: {"received" if self.response is not None else "none"}
 
 
 def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=None, download_directory=None,
-                  save_to_json=True, download_attachments=True) -> [ELNResponse, str]:
-    importer = ELNImporter(silent=True)
+                  save_to_json=True, download_attachments=True, debug=False) -> [ELNResponse, str]:
+    importer = ELNImporter(silent=True, debug=debug)
     importer.attach_api_key_from_file(api_file)
     importer.configure_api(url=api_url, permissions="read only",
                            verify_communication=False)
@@ -1373,16 +1373,12 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
         try:
             os.mkdir("./" + download_directory)
         except FileExistsError:
-            print(f"Directory '{download_directory}' already exists.")
+            importer._log(f"Directory '{download_directory}' already exists.", "FIL")
         except PermissionError:
-            print(f"Permission denied: Unable to create '{download_directory}'.")
-
-    importer.toggle_debug(True)
+            importer._log(f"Permission denied: Unable to create '{download_directory}'.", "USR")
 
     if download_attachments:
         experiment = importer.request(advanced_query=f"id:{experiment_id}", download_attachments=download_directory)
-    else:
-        experiment = importer.request(advanced_query=f"id:{experiment_id}", download_attachments=False)
 
     if save_to_json:
         experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
