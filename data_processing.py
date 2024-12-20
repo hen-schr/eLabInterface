@@ -78,7 +78,8 @@ def clear_comment_file(directory, filename="file_comments.temp"):
     if directory[-1] != "/":
         directory += "/"
     
-    os.remove(directory + filename)
+    if os.path.exists(directory + filename):
+        os.remove(directory + filename)
 
 
 def comment_file(filename, comment, comment_file="file_comments.temp"):
