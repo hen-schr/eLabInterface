@@ -1,22 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from typing import Literal, Union
 
 module_version = 0.1
 
 
 class ProcessingLogger:
-    def __init__(self, template=None, directory=None):
+    def __init__(self, template=None, directory=None, prefix=None):
         self.template = template
         self.file_comments =  {"raw": "", "processed": ""}
         self.directory = directory
+        self.prefix = prefix
+
+        if self.directory[-1] != "/":
+            self.directory += "/"
 
     def savefig(self, filename, directory=None, comment=None, category="processed", **kwargs):
 
-        plt.savefig(directory + filename, **kwargs)
-
-        if comment is None:
-            return True
+        filename = ((self.prefix + "_") if self.prefix is not None else "") + filename
 
         if directory is None:
             directory = self.directory
@@ -26,10 +28,40 @@ class ProcessingLogger:
         if directory[-1] != "/":
             directory += "/"
 
+        plt.savefig(directory + filename, **kwargs)
+
+        if comment is None:
+            return True
+
         comment_str = f"- `{filename}`: {comment}\n"
 
         self.file_comments[category] = self.file_comments[category] + comment_str
 
+    def comment_file(self, filename, comment, category: Literal["raw", "processed"] = "processed"):
+
+        comment_str = f"- `{filename}`: {comment}\n"
+
+        self.file_comments[category] = self.file_comments[category] + comment_str
+
+    def generate_readme(self, parameters: dict, path=None, readme_template=None):
+
+        for key, value in self.file_comments.items():
+            parameters[f"{key}_file_comments"] = value
+
+        if readme_template is None:
+            readme_template = self.template
+
+        with open(readme_template, "r") as readfile:
+            template = readfile.read()
+
+        if path is None:
+            path = self.directory + "README.md"
+
+        for key, value in parameters.items():
+            template = template.replace(f"%{key}%", str(value))
+
+        with open(path, "w") as writefile:
+            writefile.write(template)
 
 
 
