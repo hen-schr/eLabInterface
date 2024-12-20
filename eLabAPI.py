@@ -604,7 +604,7 @@ class ELNResponse(ELNDataLogger):
         return eln_dict[item]
 
     def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed",
-                   filter: list[Literal["USR", "COM", "PRC, FIL"]] = None) -> str:
+                   filter_categories: list[Literal["USR", "COM", "PRC, FIL"]] = None) -> str:
         """
 
         Returns the log entries of the Response instance, as well as the attached Importer and FileManager if desired.
@@ -626,7 +626,7 @@ class ELNResponse(ELNDataLogger):
             log_string = ""
 
             for entry in sorted_log_entries:
-                if filter is None or entry[1].split("\t")[1] in filter:
+                if filter_categories is None or entry[1].split("\t")[1] in filter_categories:
                     log_string += entry[0].strftime("%y-%m-%d %H:%H:%S.%f") + "\t" + entry[1] + "\n"
 
             return log_string
