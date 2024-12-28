@@ -524,6 +524,8 @@ class FileManager(ELNDataLogger):
 
         if path[-1] != "/":
             path += "/"
+        if path[0] == "/":
+            path = path[1:]
 
         return path
 
@@ -682,6 +684,10 @@ class ELNResponse(ELNDataLogger):
 
     def get_download_directory(self):
         return self.__file_manager.unify_directory(self._download_directory)
+
+    def set_download_directory(self, path):
+        self._download_directory = self.__file_manager.unify_directory(path)
+        self._log(f"set download directory to {self._download_directory}")
 
     def set_metadata(self, data: dict):
         self._metadata = data
@@ -847,11 +853,11 @@ class ELNResponse(ELNDataLogger):
         if self._response is None:
             self._log("Response does not contain any data yet.", "USR")
             return None
-        elif self.get_attachments() is None:
-            self._log("No uploads were attached to the response.", "USR")
-            return None
         elif self._download_directory is None:
             self._log("No uploads were downloaded from the ELN API. Request downloads via the importer first.", "USR")
+            return None
+        elif self.get_attachments() is None and os.listdir(self._download_directory) == []:
+            self._log("No uploads were attached to the response.", "USR")
             return None
 
         if type(selection) is str:
@@ -864,6 +870,8 @@ class ELNResponse(ELNDataLogger):
                 return None
 
         directory = self.get_download_directory()
+
+        print(directory + string_selection)
 
         return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
 
@@ -1382,8 +1390,6 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
 
     if save_to_json:
         experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
-
-    experiment.add_metadata("short title", experiment_title)
 
     return experiment, download_directory
 

@@ -6,17 +6,48 @@ from typing import Literal, Union
 module_version = 0.1
 
 
-class ProcessingLogger:
+class DataManager:
     def __init__(self, template=None, directory=None, prefix=None):
         self.template = template
         self.file_comments =  {"raw": "", "processed": ""}
         self.directory = directory
         self.prefix = prefix
+        self.caption_index = 1
+        self.summary = None
 
         if self.directory[-1] != "/":
             self.directory += "/"
 
-    def savefig(self, filename, directory=None, comment=None, category="processed", **kwargs):
+    def generate_summary(self, data: Union[dict, any], summary_parameters: list[str], handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
+
+        parameters = {}
+
+        for param in summary_parameters:
+            try:
+                parameters[param] = data[param]
+            except KeyError:
+                if handle_missing == "raise":
+                    raise KeyError(f"Missing required parameter '{param}'")
+                elif handle_missing == "ignore":
+                    pass
+                elif handle_missing == "coerce":
+                    parameters[param] = None
+
+        info_display = ""
+
+        for param in parameters:
+            info_display += parameters[param]
+            info_display += (" " + param.split(" / ")[-1].strip()) if is_float(
+                parameters[param]) and "/" in param else ""
+            info_display += "; "
+
+        info_display = info_display[:-2]
+
+        self.summary = info_display
+
+        return info_display
+
+    def savefig(self, filename, directory=None, comment=None, category="processed", generate_caption=True, caption_offset=None, **kwargs):
 
         filename = ((self.prefix + "_") if self.prefix is not None else "") + filename
 
@@ -28,7 +59,20 @@ class ProcessingLogger:
         if directory[-1] != "/":
             directory += "/"
 
+        fig = plt.gcf()
+
         plt.savefig(directory + filename, **kwargs)
+
+        if generate_caption:
+
+            if caption_offset is None:
+                caption_offset = 0.05
+
+            caption = f"Figure {self.caption_index}: {comment}"
+            self.caption_index += 1
+
+            fig.text(0.5, -caption_offset, caption, ha="center", wrap=True, va="top", multialignment="left")
+
 
         if comment is None:
             return True
@@ -150,6 +194,15 @@ def comment_file(filename, comment, comment_file="file_comments.temp"):
     comment_str = f"- `{filename}`: {comment}\n"
     with open(comment_file, "a") as writefile:
         writefile.write(comment_str)
+
+
+def is_float(value):
+    try:
+        value = float(value)
+    except ValueError:
+        return False
+
+    return True
 
 
 calibration_dict = {
