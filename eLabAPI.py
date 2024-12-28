@@ -871,8 +871,6 @@ class ELNResponse(ELNDataLogger):
 
         directory = self.get_download_directory()
 
-        print(directory + string_selection)
-
         return self.__file_manager.open_file(directory + string_selection, open_as=open_as, **kwargs)
 
     def open_upload(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
