@@ -6,9 +6,6 @@ import shutil
 import re
 from datetime import datetime
 
-from fontTools.unicodedata import script
-from scipy.optimize import direct
-
 module_version = 0.1
 
 
@@ -16,7 +13,7 @@ class DataManager:
     def __init__(self, template=None, directory=None, prefix=None, silent=False, debug=False):
         self.template = template
         self.file_comments =  {"raw": "", "processed": ""}
-        self.directory = directory
+        self.directory = directory.replace("\\", "/") if type(directory) is str else directory
         self.prefix = prefix
         self.caption_index = 1
         self.summary = None
@@ -25,8 +22,13 @@ class DataManager:
         self._silent = silent
         self._debug = debug
 
+        if self.directory is None:
+            self.directory = os.getcwd().replace("\\", "/")
         if self.directory[-1] != "/":
             self.directory += "/"
+
+        if not os.path.exists(self.directory):
+            raise FileNotFoundError(f"path {self.directory} does not exist!")
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
@@ -59,7 +61,7 @@ class DataManager:
         info_display = ""
 
         for param in parameters:
-            info_display += parameters[param]
+            info_display += str(parameters[param])
             info_display += (" " + param.split(" / ")[-1].strip()) if is_float(
                 parameters[param]) and "/" in param else ""
             info_display += "; "
@@ -110,10 +112,13 @@ class DataManager:
 
         self.file_comments[category] = self.file_comments[category] + comment_str
 
-    def generate_readme(self, parameters: dict, path=None, readme_template=None):
+    def generate_readme(self, parameters: dict = None, path=None, readme_template=None):
+
+        if parameters is None:
+            parameters = {}
 
         for key, value in self.file_comments.items():
-            parameters[f"{key}_file_comments"] = value
+            parameters[f"{key}_file_comments"] = value.strip("\n")
 
         if readme_template is None:
             readme_template = self.template
@@ -314,6 +319,8 @@ def is_float(value):
     try:
         value = float(value)
     except ValueError:
+        return False
+    except TypeError:
         return False
 
     return True
