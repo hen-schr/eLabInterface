@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from typing import Literal, Union
+import shutil
+import re
 
 module_version = 0.1
 
@@ -107,6 +109,65 @@ class DataManager:
         with open(path, "w") as writefile:
             writefile.write(template)
 
+
+    def generate_archive(self, path=None, file_list=None, notebook_name=None, script_location=None, file_filter: str = None, include_code: Literal["full", "installscript"] = "full", to_zip=True):
+        if path is None:
+            path = self.directory + self.prefix + "_archive/"
+
+        if file_list is None:
+            file_list = os.listdir(self.directory)
+
+        if not os.path.exists(path):
+            os.mkdir(path)
+        if not os.path.exists(path + "/Lib/"):
+            os.mkdir(path + "/Lib/")
+
+        if notebook_name is None:
+            notebook_name = os.getcwd().replace("\\", "/") + "/" + self.prefix + ".ipynb"
+        else:
+            notebook_name = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
+
+        shutil.copy(notebook_name, path + self.prefix + ".ipynb")
+
+        copied_files = 0
+
+        for file in file_list:
+            if os.path.isdir(self.directory + file):
+                pass
+            elif file_filter is None:
+                shutil.copy(self.directory + file, path + file)
+                copied_files += 1
+            elif re.search(file_filter, file) is not None:
+                shutil.copy(self.directory + file, path + file)
+                copied_files += 1
+
+        print(f"copied {copied_files} files")
+
+        if include_code == "full":
+            if script_location is None:
+                script_location = os.getcwd().replace("\\", "/") + "/Lib/"
+            print(script_location)
+            self._copy_scripts(script_location, path + "/Lib/")
+        elif include_code == "installscript":
+            print("Generating install scripts has not been implemented yet.")
+
+        if to_zip:
+            shutil.make_archive(path[:-1], "zip", path)
+            shutil.rmtree(path)
+
+
+    @staticmethod
+    def _copy_scripts(origin_directory, target_directory):
+        files = os.listdir(origin_directory)
+
+        copied_files = 0
+
+        for file in files:
+            if file[-3:] == ".py":
+                shutil.copy(origin_directory + file, target_directory + file)
+                copied_files += 1
+
+        print(f"copied {copied_files} scripts")
 
 
 def return_slice_of_data(x, y, interval):
