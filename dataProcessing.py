@@ -113,7 +113,7 @@ class DataManager:
             writefile.write(template)
 
     @staticmethod
-    def generate_python_from_jupyter(notebook_name=None, directory=None):
+    def generate_python_from_jupyter(notebook_name, directory=None):
 
         if directory is None:
             directory = os.getcwd().replace("\\", "/") + "/"
@@ -121,9 +121,9 @@ class DataManager:
         notebook_name = notebook_name.replace(".ipynb", "") + ".ipynb"
         script_path = directory + notebook_name.replace(".ipynb", "") + ".py"
 
-        print(directory + notebook_name)
+        print(directory, notebook_name)
 
-        os.system(f"""cd {directory}& jupyter nbconvert --to script {notebook_name}""")
+        os.system(f"""cd '{directory}'& jupyter nbconvert --to script {notebook_name}""")
 
         with open(script_path, "r") as readfile:
             script_str = readfile.read()
@@ -149,14 +149,15 @@ class DataManager:
             os.mkdir(path + "/Lib/")
 
         if notebook_name is None:
-            notebook_name = os.getcwd().replace("\\", "/") + "/" + self.prefix + ".ipynb"
-        else:
-            notebook_name = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
+            notebook_name = self.prefix + ".ipynb"
 
-        shutil.copy(notebook_name, path + self.prefix + ".ipynb")
+        notebook_path = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
+
+        shutil.copy(notebook_path, path + self.prefix + ".ipynb")
 
         if jupyter_to_script:
-            os.system(f"""jupyter nbconvert --to script {path + self.prefix + ".ipynb"}""")
+            self.generate_python_from_jupyter(path + self.prefix + ".ipynb")
+            #os.system(f"""jupyter nbconvert --to script {path + self.prefix + ".ipynb"}""")
 
 
         copied_files = 0
