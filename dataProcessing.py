@@ -227,6 +227,7 @@ def return_slice_of_data(x, y, interval):
     actual_interval = [0, 0]
 
     if interval[1] is None:
+        #TODO should be changed to x_stop = -1 later
         interval[1] = -0.000001
     
     for i, num in enumerate(interval):
