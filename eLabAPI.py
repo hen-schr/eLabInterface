@@ -1374,6 +1374,7 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
 
     if experiment_title is None:
         experiment_title = experiment.get_metadata("title").split(" ")[0]
+
     if download_directory is None:
         download_directory = "Downloads/" + experiment_title
         try:
@@ -1389,15 +1390,17 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
     if save_to_json:
         experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
 
+    experiment.add_metadata("short title", experiment_title)
+
     return experiment, download_directory
 
 
 def example_of_use():
-    importer = ELNImporter()
+    importer = ELNImporter(debug=True)
 
     importer.attach_api_key_from_file(
         file="YOUR-API-KEY-FILE")
-    importer.configure_api(url="YOUR-API-HOST-URL", permissions="read only", debug=True)
+    importer.configure_api(url="YOUR-API-HOST-URL", permissions="read only")
 
     importer.ping_api()
 
