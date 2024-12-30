@@ -135,25 +135,38 @@ class DataManager:
         with open(path, "w") as writefile:
             writefile.write(template)
 
-    def generate_python_from_jupyter(self, notebook_name, directory=None):
+    def generate_python_from_jupyter(self, notebook_path, script_path=None):
 
-        if directory is None:
-            directory = os.getcwd().replace("\\", "/") + "/"
+        if not os.path.exists(notebook_path):
+            notebook_path = self.directory + notebook_path
+            if not os.path.exists(notebook_path):
+                raise FileNotFoundError(f"file {notebook_path} does not exist!")
 
-        notebook_name = notebook_name.replace(".ipynb", "") + ".ipynb"
-        script_path = directory + notebook_name.replace(".ipynb", "") + ".py"
+
+        working_directory = notebook_path[:notebook_path.rfind("/") + 1]
+
+        notebook_name = notebook_path[notebook_path.rfind("/") + 1:].replace(".ipynb", "") + ".ipynb"
+
+        if script_path is None:
+            script_path = notebook_path.replace(".ipynb", "") + ".py"
+        else:
+            script_path = script_path.replace(".py", "")
+
+        if script_path[:len(working_directory)] == working_directory:
+            script_path = script_path.replace(working_directory, "")
+
 
         self._log(f"converting jupyter notebook '{notebook_name}' to python script...", "PRC")
-        os.system(f"""cd '{directory}'& jupyter nbconvert --to script {notebook_name}""")
+        os.system(f"""cd {working_directory} & jupyter nbconvert --to script {notebook_name} --output {script_path}""")
 
         self._log(f"processing generated script...", "PRC")
-        with open(script_path, "r") as readfile:
+        with open(working_directory + script_path + ".py", "r") as readfile:
             script_str = readfile.read()
 
         script_end = script_str.find("%script end%")
         script_str = script_str[:script_end]
 
-        with open(script_path, "w") as writefile:
+        with open(working_directory + script_path + ".py", "w") as writefile:
             writefile.write(script_str)
 
         self._log(f"successfully created python script at '{script_path}'", "PRC")

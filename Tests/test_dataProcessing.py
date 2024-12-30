@@ -121,3 +121,15 @@ class TestDataManager(unittest.TestCase):
             reference_readme = readfile.read()
 
         self.assertEqual(reference_readme, generated_readme)
+
+    def test_generate_python_from_jupyter(self):
+        self.manager.generate_python_from_jupyter("testfiles/Testbook.ipynb",
+                                                  "testfiles/dataProcessing/Testbook.py")
+
+        with open("testfiles/dataProcessing/Testbook.py", "r") as readfile:
+            generated_file = readfile.read()
+
+        with open("testfiles/Testbook_converted.py") as readfile:
+            reference_file = readfile.read()
+
+        self.assertEqual(reference_file, generated_file)
