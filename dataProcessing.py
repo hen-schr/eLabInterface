@@ -4,6 +4,7 @@ import os
 from typing import Literal, Union
 import shutil
 import re
+from datetime import datetime
 
 from fontTools.unicodedata import script
 from scipy.optimize import direct
@@ -12,7 +13,7 @@ module_version = 0.1
 
 
 class DataManager:
-    def __init__(self, template=None, directory=None, prefix=None):
+    def __init__(self, template=None, directory=None, prefix=None, silent=False, debug=False):
         self.template = template
         self.file_comments =  {"raw": "", "processed": ""}
         self.directory = directory
@@ -20,10 +21,27 @@ class DataManager:
         self.caption_index = 1
         self.summary = None
 
+        self.log = ""
+        self._silent = silent
+        self._debug = debug
+
         if self.directory[-1] != "/":
             self.directory += "/"
 
-    def generate_summary(self, data: Union[dict, any], summary_parameters: list[str], handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
+    def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
+        """
+        Logs important events of data processing and other activities
+        :param message: Message to add to the log, will be automatically timestamped
+        :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message),
+        """
+        self.log += f"""\n{datetime.strftime(datetime.now(), "%y-%m-%d %H:%H:%S.%f")}""" \
+                    + f"""\t{category if category is not None else "   "}\t{message}"""
+
+        if (not self._silent and category == "USR") or self._debug:
+            print(message)
+
+    def generate_summary(self, data: Union[dict, any], summary_parameters: list[str],
+                         handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
 
         parameters = {}
 
@@ -112,8 +130,7 @@ class DataManager:
         with open(path, "w") as writefile:
             writefile.write(template)
 
-    @staticmethod
-    def generate_python_from_jupyter(notebook_name, directory=None):
+    def generate_python_from_jupyter(self, notebook_name, directory=None):
 
         if directory is None:
             directory = os.getcwd().replace("\\", "/") + "/"
@@ -121,10 +138,10 @@ class DataManager:
         notebook_name = notebook_name.replace(".ipynb", "") + ".ipynb"
         script_path = directory + notebook_name.replace(".ipynb", "") + ".py"
 
-        print(directory, notebook_name)
-
+        self._log(f"converting jupyter notebook '{notebook_name}' to python script...", "PRC")
         os.system(f"""cd '{directory}'& jupyter nbconvert --to script {notebook_name}""")
 
+        self._log(f"processing generated script...", "PRC")
         with open(script_path, "r") as readfile:
             script_str = readfile.read()
 
@@ -133,6 +150,8 @@ class DataManager:
 
         with open(script_path, "w") as writefile:
             writefile.write(script_str)
+
+        self._log(f"successfully created python script at '{script_path}'", "PRC")
 
     def generate_archive(self, path=None, file_list=None, notebook_name=None, script_location=None,
                          file_filter: str = None, jupyter_to_script=True,
@@ -154,10 +173,10 @@ class DataManager:
         notebook_path = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
 
         shutil.copy(notebook_path, path + self.prefix + ".ipynb")
+        self._log("copied jupyter notebook", "FIL")
 
         if jupyter_to_script:
             self.generate_python_from_jupyter(path + self.prefix + ".ipynb")
-            #os.system(f"""jupyter nbconvert --to script {path + self.prefix + ".ipynb"}""")
 
 
         copied_files = 0
@@ -172,12 +191,11 @@ class DataManager:
                 shutil.copy(self.directory + file, path + file)
                 copied_files += 1
 
-        print(f"copied {copied_files} files")
+        self._log(f"copied {copied_files} data files", "FIL")
 
         if include_code == "full":
             if script_location is None:
                 script_location = os.getcwd().replace("\\", "/") + "/Lib/"
-            print(script_location)
             self._copy_scripts(script_location, path + "/Lib/")
         elif include_code == "installscript":
             print("Generating install scripts has not been implemented yet.")
@@ -185,10 +203,13 @@ class DataManager:
         if to_zip:
             shutil.make_archive(path[:-1], "zip", path)
             shutil.rmtree(path)
+            self._log("created zip archive with all data concerning the experiment", "FIL")
+
+        else:
+            self._log("created archive with all data concerning the experiment", "FIL")
 
 
-    @staticmethod
-    def _copy_scripts(origin_directory, target_directory):
+    def _copy_scripts(self, origin_directory, target_directory):
         files = os.listdir(origin_directory)
 
         copied_files = 0
@@ -198,7 +219,7 @@ class DataManager:
                 shutil.copy(origin_directory + file, target_directory + file)
                 copied_files += 1
 
-        print(f"copied {copied_files} scripts")
+        self._log(f"copied {copied_files} scripts", "FIL")
 
 
 def return_slice_of_data(x, y, interval):
