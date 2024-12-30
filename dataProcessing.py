@@ -5,6 +5,9 @@ from typing import Literal, Union
 import shutil
 import re
 
+from fontTools.unicodedata import script
+from scipy.optimize import direct
+
 module_version = 0.1
 
 
@@ -109,8 +112,31 @@ class DataManager:
         with open(path, "w") as writefile:
             writefile.write(template)
 
+    @staticmethod
+    def generate_python_from_jupyter(notebook_name=None, directory=None):
 
-    def generate_archive(self, path=None, file_list=None, notebook_name=None, script_location=None, file_filter: str = None, include_code: Literal["full", "installscript"] = "full", to_zip=True):
+        if directory is None:
+            directory = os.getcwd().replace("\\", "/") + "/"
+
+        notebook_name = notebook_name.replace(".ipynb", "") + ".ipynb"
+        script_path = directory + notebook_name.replace(".ipynb", "") + ".py"
+
+        print(directory + notebook_name)
+
+        os.system(f"""cd {directory}& jupyter nbconvert --to script {notebook_name}""")
+
+        with open(script_path, "r") as readfile:
+            script_str = readfile.read()
+
+        script_end = script_str.find("%script end%")
+        script_str = script_str[:script_end]
+
+        with open(script_path, "w") as writefile:
+            writefile.write(script_str)
+
+    def generate_archive(self, path=None, file_list=None, notebook_name=None, script_location=None,
+                         file_filter: str = None, jupyter_to_script=True,
+                         include_code: Literal["full", "installscript"] = "full", to_zip=True):
         if path is None:
             path = self.directory + self.prefix + "_archive/"
 
@@ -128,6 +154,10 @@ class DataManager:
             notebook_name = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
 
         shutil.copy(notebook_name, path + self.prefix + ".ipynb")
+
+        if jupyter_to_script:
+            os.system(f"""jupyter nbconvert --to script {path + self.prefix + ".ipynb"}""")
+
 
         copied_files = 0
 
