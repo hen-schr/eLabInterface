@@ -164,7 +164,22 @@ class DataManager:
 
             return unit
 
-    def add_vocabulary(self, filepath=None, mode: Literal["overwrite", "append"]="overwrite"):
+    def add_vocabulary(self, filepath=None, mode: Literal["overwrite", "append"]="overwrite") -> None:
+        """
+        Imports vocabulary that can be used to interpret data more easily
+        :param filepath: Path to a JSON file, if left empty, a tkinter filedialog is opened
+        :param mode: defines action taken when another vocabulary set has been imported into the object already -
+        'overwrite': existing vocabulary is overwritten by the new dataset; 'append': existing vocabulary is extended by
+        the new dataset
+        :return: None
+
+        format of a vocabulary file (*.json):
+        {
+            "unique-name-of-element": {"term": "number 1", "definition": "first example", "unit": "Hz"},
+            "unique-name-of-second-element": {"term": "number 2", "definition": "second example", "unit": "m s-1"}
+        }
+        """
+
         if filepath is None:
             filepath = filedialog.askopenfilename(initialdir=self._working_directory,
                                                   filetypes=[("JSON files", "*.json"), ("text files", "*.txt")],
