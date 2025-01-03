@@ -105,7 +105,7 @@ class TestDataManager(unittest.TestCase):
 
 
     def test_generate_readme(self):
-        manager = dataProcessing.DataManager(directory="testfiles/dataProcessing", template="testfiles/template.md")
+        manager = dataProcessing.DataManager(directory="testfiles/dataProcessing", template_file="testfiles/template.md")
 
         parameters = {"id": 1234, "name": "sam", "job": "scientist"}
 

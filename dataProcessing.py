@@ -10,12 +10,13 @@ module_version = 0.1
 
 
 class DataManager:
-    def __init__(self, template=None, directory=None, prefix=None, silent=False, debug=False):
-        self.template = template
+    def __init__(self, template_file=None, directory=None, short_title=None, silent=False, debug=False):
+
+        self.template_file = template_file
         self.file_comments =  {"raw": "", "processed": ""}
         self.directory = directory.replace("\\", "/") if type(directory) is str else directory
-        self.prefix = prefix
-        self.caption_index = 1
+        self.short_title = short_title
+        self._caption_index = 1
         self.summary = None
 
         self.log = ""
@@ -41,6 +42,13 @@ class DataManager:
 
         if (not self._silent and category == "USR") or self._debug:
             print(message)
+
+    def set_caption_index(self, num: int):
+
+        if type(num) is int:
+            self._caption_index = num
+        else:
+            raise ValueError("Caption index must be int")
 
     def generate_summary(self, data: Union[dict, any], summary_parameters: list[str],
                          handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
@@ -74,7 +82,7 @@ class DataManager:
 
     def savefig(self, filename, directory=None, comment=None, category="processed", generate_caption=True, caption_offset=None, **kwargs):
 
-        filename = ((self.prefix + "_") if self.prefix is not None else "") + filename
+        filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
 
         if directory is None:
             directory = self.directory
@@ -93,8 +101,8 @@ class DataManager:
             if caption_offset is None:
                 caption_offset = 0.05
 
-            caption = f"Figure {self.caption_index}: {comment}"
-            self.caption_index += 1
+            caption = f"Figure {self._caption_index}: {comment}"
+            self._caption_index += 1
 
             fig.text(0.5, -caption_offset, caption, ha="center", wrap=True, va="top", multialignment="left")
 
@@ -121,7 +129,7 @@ class DataManager:
             parameters[f"{key}_file_comments"] = value.strip("\n")
 
         if readme_template is None:
-            readme_template = self.template
+            readme_template = self.template_file
 
         with open(readme_template, "r") as readfile:
             template = readfile.read()
