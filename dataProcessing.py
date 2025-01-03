@@ -10,11 +10,11 @@ module_version = 0.1
 
 
 class DataManager:
-    def __init__(self, template_file=None, directory=None, short_title=None, silent=False, debug=False):
+    def __init__(self, template_file=None, working_directory=None, short_title=None, silent=False, debug=False):
 
         self.template_file = template_file
         self.file_comments =  {"raw": "", "processed": ""}
-        self.directory = directory.replace("\\", "/") if type(directory) is str else directory
+        self._working_directory = working_directory
         self.short_title = short_title
         self._caption_index = 1
         self.summary = None
@@ -23,13 +23,28 @@ class DataManager:
         self._silent = silent
         self._debug = debug
 
-        if self.directory is None:
-            self.directory = os.getcwd().replace("\\", "/")
-        if self.directory[-1] != "/":
-            self.directory += "/"
+        if self._working_directory is None:
+            self._working_directory = os.getcwd().replace("\\", "/")
 
-        if not os.path.exists(self.directory):
-            raise FileNotFoundError(f"path {self.directory} does not exist!")
+        self._working_directory = self._harmonize_path(self._working_directory, path_type="directory", check_for_existence=True)
+
+        if not os.path.exists(self._working_directory):
+            raise FileNotFoundError(f"path {self._working_directory} does not exist!")
+
+    @staticmethod
+    def _harmonize_path(path, path_type: Literal["directory", "file"]="directory", check_for_existence=False):
+
+        # working with unix-like filepaths
+        harmonized_path = path.replace("\\", "/")
+
+        # making sure paths add up correctly later on
+        if path_type == "directory" and harmonized_path[-1] != "/":
+            harmonized_path += "/"
+
+        if check_for_existence and not os.path.exists(harmonized_path):
+            raise FileNotFoundError(f"path {harmonized_path} does not exist!")
+
+        return harmonized_path
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
@@ -49,6 +64,12 @@ class DataManager:
             self._caption_index = num
         else:
             raise ValueError("Caption index must be int")
+
+    def get_working_directory(self):
+        return self._working_directory
+
+    def set_working_directory(self, path):
+        self._working_directory = self._harmonize_path(path, path_type="directory", check_for_existence=True)
 
     def generate_summary(self, data: Union[dict, any], summary_parameters: list[str],
                          handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
@@ -85,7 +106,7 @@ class DataManager:
         filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
 
         if directory is None:
-            directory = self.directory
+            directory = self._working_directory
         if directory is None:
             directory = ""
 
@@ -135,7 +156,7 @@ class DataManager:
             template = readfile.read()
 
         if path is None:
-            path = self.directory + "README.md"
+            path = self._working_directory + "README.md"
 
         for key, value in parameters.items():
             template = template.replace(f"%{key}%", str(value))
@@ -146,7 +167,7 @@ class DataManager:
     def generate_python_from_jupyter(self, notebook_path, script_path=None):
 
         if not os.path.exists(notebook_path):
-            notebook_path = self.directory + notebook_path
+            notebook_path = self._working_directory + notebook_path
             if not os.path.exists(notebook_path):
                 raise FileNotFoundError(f"file {notebook_path} does not exist!")
 
@@ -183,10 +204,10 @@ class DataManager:
                          file_filter: str = None, jupyter_to_script=True,
                          include_code: Literal["full", "installscript"] = "full", to_zip=True):
         if path is None:
-            path = self.directory + self.prefix + "_archive/"
+            path = self._working_directory + self.short_title + "_archive/"
 
         if file_list is None:
-            file_list = os.listdir(self.directory)
+            file_list = os.listdir(self._working_directory)
 
         if not os.path.exists(path):
             os.mkdir(path)
@@ -194,27 +215,27 @@ class DataManager:
             os.mkdir(path + "/Lib/")
 
         if notebook_name is None:
-            notebook_name = self.prefix + ".ipynb"
+            notebook_name = self.short_title + ".ipynb"
 
         notebook_path = os.getcwd().replace("\\", "/") + "/" + notebook_name.replace(".ipynb", "") + ".ipynb"
 
-        shutil.copy(notebook_path, path + self.prefix + ".ipynb")
+        shutil.copy(notebook_path, path + self.short_title + ".ipynb")
         self._log("copied jupyter notebook", "FIL")
 
         if jupyter_to_script:
-            self.generate_python_from_jupyter(path + self.prefix + ".ipynb")
+            self.generate_python_from_jupyter(path + self.short_title + ".ipynb")
 
 
         copied_files = 0
 
         for file in file_list:
-            if os.path.isdir(self.directory + file):
+            if os.path.isdir(self._working_directory + file):
                 pass
             elif file_filter is None:
-                shutil.copy(self.directory + file, path + file)
+                shutil.copy(self._working_directory + file, path + file)
                 copied_files += 1
             elif re.search(file_filter, file) is not None:
-                shutil.copy(self.directory + file, path + file)
+                shutil.copy(self._working_directory + file, path + file)
                 copied_files += 1
 
         self._log(f"copied {copied_files} data files", "FIL")
