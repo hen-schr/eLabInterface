@@ -1,0 +1,380 @@
+{
+	"_comment": "If unit is not defined in element name, SI units are used.",
+	"_version": "2024-1",
+	"stabilized": {
+		"term": "stabilized",
+		"definition": "A value obtained after an initial stabilization period. Can only be assured by contiuously monitoring or taking a sufficient amount of measurements over time.",
+		"symbol": "_eq",
+		"symbolLaTeX": "_{eq.}",
+		"type": "qualifier"
+	},
+	"final": {
+		"term": "final",
+		"definition": "A value obtained at the end of a time-resolved experiment, that is expected to require stabilization, which could not be assured by the means of the experiment or was not of interest.",
+		"symbol": "_end",
+		"symbolLaTeX": "_{end}",
+		"type": "qualifier"
+	},
+	"maximum": {
+		"term": "maximum",
+		"definition": "The maximum value measured during an experiment with multiple time-resolved values.",
+		"symbol": "_max",
+		"symbolLaTeX": "_{max}",
+		"type": "qualifier"
+	},
+	"minimum": {
+		"term": "minmum",
+		"definition": "The minimum value measured during an experiment with multiple time-resolved values.",
+		"symbol": "_min",
+		"symbolLaTeX": "_{min}",
+		"type": "qualifier"
+	},
+	"retention": {
+		"term": "stabilized retention",
+		"definition": "The retention measured under equilibrated conditions. This usually means that the retention did not change significantly for at least half an hour.",
+		"symbol": "R_eq",
+		"symbolLaTeX": "R_{eq.}",
+		"unit": "-",
+		"unitLaTeX": "-",
+		"type": "number"
+	},
+	"stabilizedRetention_percent": {
+		"term": "stabilized retention",
+		"definition": "The retention measured under equilibrated conditions. This usually means that the retention did not change significantly for at least half an hour.",
+		"symbol": "R_eq",
+		"symbolLaTeX": "R_{eq.}",
+		"unit": "%",
+		"unitLaTeX": "\\%",
+		"type": "number"
+	},
+	"maximumRetention": {
+		"term": "maximum retention",
+		"definition": "The maximum retention measured during a filtration experiment. Can be specified even if stablilized retention could not be determined.",
+		"symbol": "R_max",
+		"symbolLaTeX": "R_{max.}",
+		"unit": "-",
+		"unitLaTeX": "-",
+		"type": "number"
+	},
+	"retention": {
+		"term": "retention",
+		"definition": "Retention measured during a filtration experiment, calculated from the feed and permeate concentration of a substance.",
+		"symbol": "R",
+		"symbolLaTeX": "R",
+		"unit": "-",
+		"unitLaTeX": "-",
+		"type": "number"
+	},
+	"retention_percent": {
+		"term": "retention",
+		"definition": "Retention measured during a filtration experiment, calculated from the feed and permeate concentration of a substance.",
+		"symbol": "R",
+		"symbolLaTeX": "R",
+		"unit": "%",
+		"unitLaTeX": "\\%",
+		"type": "number"
+	},
+	"maximumRetention_percent": {
+		"term": "maximum retention",
+		"definition": "The maximum retention measured during a filtration experiment. Can be specified even if stablilized retention could not be determined.",
+		"symbol": "R_max",
+		"symbolLaTeX": "R_{max.}",
+		"unit": "%",
+		"unitLaTeX": "\\%",
+		"type": "number"
+	},
+	"stabilizedPermeateFlux": {
+		"term": "stabilized permeate flux",
+		"definition": "The permeate flux measured in equilibrium. This usually means that the permeate flux did not change significantly for at least half an hour.",
+		"symbol": "F_V",
+		"symbolLaTeX": "F_{V, eq.}",
+		"unit": "L h-1",
+		"unitLaTeX": "L \\; h^{-1}",
+		"type": "number"
+	},
+	"experimentRuntime_min": {
+		"term": "experiment runtime",
+		"definition": "The total runtime of an experiment for which the membrane filtration is conducted under the given conditions, not taking into account membrane pretreatment or posterior cleaning steps.",
+		"symbol": "t_tot",
+		"symbolLaTeX": "t_{tot.}",
+		"unit": "min",
+		"unitLaTeX": "min",
+		"type": "number"
+	},
+	"pureSolventFlux": {
+		"term": "stabilized pure solvent permeate flux",
+		"definition": "The pure solvent permeate flux measured in equilibrium. This usually means that the permeate flux did not change significantly for at least half an hour.",
+		"symbol": "F_V",
+		"symbolLaTeX": "F_{V, eq.}^{solvent}",
+		"unit": "L h-1",
+		"unitLaTeX": "L \\; h^{-1}",
+		"type": "number"
+	},
+	"pureSolventFluxStabilizationTime_min": {
+		"term": "pure solvent permeate flux stabilization time",
+		"definition": "The time it took for the pure solvent permeate flux to stabilize. Can be given as the time at which the pure solvent permeate flux is within a certain distance >= 0 to the stabilized pure solvent permeate flux.",
+		"symbol": "t_stab",
+		"symbolLaTeX": "t_{eq.}^{F, solvent}",
+		"unit": "min",
+		"unitLaTeX": "min",
+		"type": "number"
+	},
+	"pureSolventPermeability": {
+		"term": "pure solvent permeability",
+		"definition": "The permeability of a membrane for the pure solvent.",
+		"symbol": "P_pure",
+		"symbolLaTeX": "P_{pure}",
+		"unit": "L m-2 h-1 bar-1",
+		"unitLaTeX": "L \\; m^{-2} \\; h^{-1} \\; bar^{-1}",
+		"type": "number"
+	},
+	"permeateFluxStabilizationTime_min": {
+		"term": "permeate flux stabilization time",
+		"definition": "The time it took for the permeate flux to stabilize. Can be given as the time at which the permeate flux is within a certain distance >= 0 to the stabilized permeate flux.",
+		"symbol": "t_stab",
+		"symbolLaTeX": "t_{eq.}^{F}",
+		"unit": "min",
+		"unitLaTeX": "min",
+		"type": "number"
+	},
+	"pureSolventFluxRecovered": {
+		"term": "recovery of pure solvent flux",
+		"definition": "Indicates wether the pure solvent permeate flux was the same before and after the actual experiment. Variations should be lower than 20 % for this to be true.",
+		"type": "bool"
+	},
+	"terminalFeedComposition": {
+		"term": "terminal feed composition",
+		"definition": "Describes the properties of the feed at the end of the experiment (ideally in equilibrium) by stating concentrations of solutes, the pH or other measurement data.",
+		"type": "object",
+		"schema": {
+			"$schema":"http://json-schema.org/draft-04/schema#","type":"object","properties":{"solutes":{"type":"array","items":[{"type":"object","properties":{"substance":{"type":"string"},"concentration_molL":{"type":"number"}},"required":["substance"]}]},"properties":{"type":"object","properties":{"pH":{"type":"number"}}}}
+		}
+	},
+	"initialFeedComposition": {
+		"term": "terminal feed composition",
+		"definition": "Describes the properties of the feed that was prepared for an experiment by stating concentrations of solutes, the pH or other measurement data.",
+		"type": "object",
+		"schema": {
+			"$schema":"http://json-schema.org/draft-04/schema#","type":"object","properties":{"solutes":{"type":"array","items":[{"type":"object","properties":{"substance":{"type":"string"},"concentration_molL":{"type":"number"}},"required":["substance"]}]},"properties":{"type":"object","properties":{"pH":{"type":"number"}, "totalFeedVolume_L":{"type":"number"}, "solvent":{"type":"string"}}}}
+		}
+	},
+	"intrinsicRetention": {
+		"term": "intrinsic retention",
+		"definition": "The retention corrected for concentration polarization, calculated from the stablized retention under equilibrated conditions.",
+		"symbol": "R_int",
+		"symbolLaTeX": "R_{int.}",
+		"unit": "-",
+		"unitLaTeX": "-",
+		"type": "number"
+	},
+	"concentration_molL": {
+		"term": "concentration",
+		"definition": "The amount of substance of one constituent divided by the total volume of the mixture.",
+		"symbol": "c",
+		"symbolLaTeX": "c",
+		"unit": "mol L-1",
+		"unitLaTeX": "mol \\; L^{-1}",
+		"type": "number"
+	},
+	"concentration_mmolL": {
+		"term": "concentration",
+		"definition": "The amount of substance of one constituent divided by the total volume of the mixture.",
+		"symbol": "c",
+		"symbolLaTeX": "c",
+		"unit": "mmol L-1",
+		"unitLaTeX": "mmol \\; L^{-1}",
+		"type": "number"
+	},
+	"conductivity_uScm": {
+		"term": "electrical conductivity",
+		"definition": "The electrical conductivity of a material or solution.",
+		"symbol": "k",
+		"symbolLaTeX": "\\kappa",
+		"unit": "µS cm-1",
+		"unitLaTeX": "\\mu S \\; cm^{-1}",
+		"type": "number"
+	},
+	"pressure_bar": {
+		"term": "pressure",
+		"definition": "The gauge pressure present in a given system.",
+		"symbol": "p",
+		"symbolLaTeX": "p",
+		"unit": "bar",
+		"unitLaTeX": "bar",
+		"type": "number"
+	},
+	"temperature_C": {
+		"term": "temperature",
+		"definition": "The temperature inside a given system.",
+		"symbol": "T",
+		"symbolLaTeX": "\\theta",
+		"unit": "°C",
+		"unitLaTeX": "\\°C",
+		"type": "number"
+	},
+	"samplingTime_min": {
+		"term": "sampling time",
+		"definition": "The time at which a sample was taken.",
+		"symbol": "t",
+		"symbolLaTeX": "t",
+		"unit": "min",
+		"unitLaTeX": "min",
+		"type": "number"
+	},
+	"time_min": {
+		"term": "time",
+		"definition": "The time associated with a certain event or datapoint.",
+		"symbol": "t",
+		"symbolLaTeX": "t",
+		"unit": "min",
+		"unitLaTeX": "min",
+		"type": "number"
+	},
+	"pumpFrequency_Hz": {
+		"term": "pump frequency",
+		"definition": "The frequency at which a pump is operated.",
+		"unit": "Hz",
+		"unitLaTeX": "Hz",
+		"type": "number"
+	},
+	"totalFeedVolume_L": {
+		"term": "feed volume",
+		"definition": "The volume of feed solution used for an experiment.",
+		"symbol":  "V_F",
+		"symbolLaTeX": "V_F",
+		"unit": "L",
+		"unitLaTeX": "L",
+		"type": "number"
+	},
+	"flowRate_mLh": {
+		"term": "flow rate",
+		"definition": "The volume of fluid passing per unit of time.",
+		"symbol":  "V_F",
+		"symbolLaTeX": "V_F",
+		"unit": "mL h-1",
+		"unitLaTeX": "mL \\; h^{-1}",
+		"type": "number"
+	},
+	"permeateFlux_LMH": {
+		"term": "permeate flux",
+		"definition": "The volume of fluid passing per unit of time.",
+		"symbol":  "J_P",
+		"symbolLaTeX": "J_P",
+		"unit": "L m-2 h-1",
+		"unitLaTeX": "L \\; m^{-2} \\; h^{-1}",
+		"type": "number"
+	},
+	"pH": {
+		"term": "pH",
+		"definition": "The decimal logarithm of the hydrogen ion concentration inside a given solution.",
+		"symbol":  "pH",
+		"symbolLaTeX": "pH",
+		"unit": "-",
+		"unitLaTeX": "-",
+		"type": "number"
+	},
+	"flowRate_Lh": {
+		"term": "flow rate",
+		"definition": "The volume of fluid passing per unit of time.",
+		"symbol":  "F_V",
+		"symbolLaTeX": "F_V",
+		"unit": "L h-1",
+		"unitLaTeX": "L \\; h^{-1}",
+		"type": "number"
+	},
+	"flowRate_mLmin": {
+		"term": "flow rate",
+		"definition": "The volume of fluid passing per unit of time.",
+		"symbol":  "F_V",
+		"symbolLaTeX": "F_V",
+		"unit": "mL min-1",
+		"unitLaTeX": "mL \\; min^{-1}",
+		"type": "number",
+		"literal": ["Flussrate / mL min-1"]
+		},
+	"absorbance": {
+		"term": "absorbance",
+		"definition": "the absorbance of a given sample",
+		"symbol":  "A",
+		"symbolLaTeX": "A",
+		"unit": "a.u.",
+		"unitLaTeX": "a.u.",
+		"type": "number",
+		"literal": ["A / a.u."]
+	},
+	"membraneID": {
+		"term": "membrane used",
+		"definition": "The type of membrane used for a given experiment. Can be specified by a unique identifier, a reference to a commercial product line or an experiment in which it was synthesized.",
+		"type": "string",
+		"literal": ["membrane", "membrane id"]
+	},
+	"membraneInternalBatch": {
+		"term": "membrane sample used",
+		"definition": "The specific membrane sample used for a given experiment. Mainly intended for internal use. Can be specified using a simple number or a reference to an experiment.",
+		"type": "string",
+		"literal": [
+			"membrane batch",
+			"membrane sample"
+		]
+	},
+	"solvent": {
+		"term": "solvent",
+		"definition": "A solvent used for an experiment.",
+		"type": "string"
+	},
+	"filtrationMode": {
+		"term": "filtration mode",
+		"definition": "Details on the mode of filtration for a given experiment. I.e. crossflow or dead-end might be specified.",
+		"type": "array",
+		"items": {
+			"type": "string"
+       }
+	},
+	"label": {
+		"term": "label",
+		"definition": "A label given, i.e. to a sample.",
+		"type": "string",
+		"literal": ["number", "nr.", "sample", "Probe"]
+	},
+	"experimentalSetup": {
+		"term": "experimental setup",
+		"definition": "Reference to an experimental setup.",
+		"type": "string"
+	},
+	"experimentType": {
+		"term": "experimental setup type",
+		"definition": "The type of experiment which might suggest a certain way of reading and analyzing the data attached.",
+		"type": "string"
+	},
+	"elnPID": {
+		"term": "ELN PID",
+		"definition": "A persistent identifier for the experiment's ELN entry.",
+		"type": "string"
+	},
+	"operator": {
+		"term": "operator",
+		"definition": "The person that conducted the experiment.",
+		"type": "string"
+	},
+	"date": {
+		"term": "date",
+		"definition": "The date (ISO 8601 / YYYY-MM-DD) on which an experiment was conducted.",
+		"type": "string"
+	},
+	"experimentConditions": {
+		"term": "experimental conditions",
+		"definition": "A set of experimental conditions.",
+		"type": "object"
+	},
+	"template": {
+			"term": "string",
+			"definition": "string",
+			"symbol": "string",
+			"symbolLaTeX": "string",
+			"unit": "string",
+			"unitLaTeX": "string",
+			"type": "string",
+			"schema": "object",
+			"literal": "array"
+		}
+}
