@@ -54,7 +54,7 @@ class DataManager:
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR"] = None) -> None:
         """
-        Logs important events of data processing and other activities
+        Logs important events of data processing and other activities.
         :param message: Message to add to the log, will be automatically timestamped
         :param category: PRC (processing), FIL (file system related), ERR (error), WRN (warning), USR (user message),
         """
@@ -91,6 +91,7 @@ class DataManager:
                                 'ignore': missing parameters are not added to the summary;
                                 'coerce': missing values are set to None
         :param separator: character used to separate the parameters in the generated summary string
+        :param use_vocabulary: if True, the summary is generated based on controlled vocabulary that can be added to the DataManager; see *add_vocabulary* for reference
         :return: Summary of dateset with parameters separated by the separator
         """
 
@@ -110,10 +111,18 @@ class DataManager:
         summary = ""
 
         for element, value in display_parameters.items():
+
             if use_vocabulary:
+
+                if self._vocabulary is None:
+                    self.add_vocabulary()
+
                 summary += self._generate_param_value_string(element, value, extraction_method="json")
+
             else:
+
                 summary += self._generate_param_value_string(element, value)
+
             summary += separator
 
         summary = summary[:-len(separator)]
@@ -125,8 +134,7 @@ class DataManager:
     def _generate_param_value_string(self, element: str, value: any,
                                      extraction_method: Literal["string dissection", "json"]="string dissection") -> str:
         """
-        Generates a string from an element-value pair that includes the value as well as the unit of the value, if
-        specified in the element string.
+        Generates a string from an element-value pair that includes the value as well as the unit of the value, if specified in the element string.
         :param element: string describing the parameter, usually in the format 'name / unit'
         :param value: value to be converted to string
         :return: string of the value and potentially the unit
@@ -149,9 +157,9 @@ class DataManager:
                                 split_string: str=" / ") -> str:
         """
         Extracts the unit from a string of type "name-of-parameter / unit".
+
         :param parameter: string to extract the unit from
-        :param extraction_method:  'string dissection': extracts units by interpreting the passed parameter string
-                        'json': (not implemented) extracts unit based on a json schema
+        :param extraction_method:  'string dissection': extracts units by interpreting the passed parameter string; 'json': (not implemented) extracts unit based on a json schema
         :param split_string: string to split the parameter string by when 'string dissection' is used
         :return: Unit as str
         """
@@ -166,14 +174,13 @@ class DataManager:
 
     def add_vocabulary(self, filepath=None, mode: Literal["overwrite", "append"]="overwrite") -> None:
         """
-        Imports vocabulary that can be used to interpret data more easily
+        Imports vocabulary that can be used to interpret data more easily.
         :param filepath: Path to a JSON file, if left empty, a tkinter filedialog is opened
-        :param mode: defines action taken when another vocabulary set has been imported into the object already -
-        'overwrite': existing vocabulary is overwritten by the new dataset; 'append': existing vocabulary is extended by
-        the new dataset
+        :param mode: defines action taken when another vocabulary set has been imported into the object already - 'overwrite': existing vocabulary is overwritten by the new dataset; 'append': existing vocabulary is extended by the new dataset
         :return: None
 
         format of a vocabulary file (*.json):
+
         {
             "unique-name-of-element": {"term": "number 1", "definition": "first example", "unit": "Hz"},
             "unique-name-of-second-element": {"term": "number 2", "definition": "second example", "unit": "m s-1"}
@@ -200,7 +207,20 @@ class DataManager:
     def _check_vocabulary_structure(self):
         pass
 
-    def savefig(self, filename, directory=None, comment=None, category="processed", generate_caption=True, caption_offset=None, **kwargs):
+    def savefig(self, filename: str, directory: str=None, comment: str=None, category: str="processed",
+                generate_caption: bool=True, caption_offset: float=None, **kwargs) -> plt.Figure:
+        """
+        Saves the current pyplot figure. Comments and captions can be added to improve the documentation.
+
+        :param filename: file to write the figure to, i.e. 'figure1.png'
+        :param directory: directory to create the file in, e.g. 'plots/'; if left empty, the standard directory of the manager is used, or the current working directory
+        :param comment: a description of the plot to add more context; can be used to generate readme files or other documentation later on
+        :param category: category of the figure and comment, e.g. 'raw' or 'processed'; see *comment_file* for reference
+        :param generate_caption: if true, a caption with the comment is added below the figure
+        :param caption_offset: distance between the bottom edge of the plot and the generated caption
+        :param kwargs: arguments passed to *pyplot.savefig*, see for reference
+        :return: current figure without the caption
+        """
 
         filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
 
@@ -209,8 +229,7 @@ class DataManager:
         if directory is None:
             directory = ""
 
-        if directory[-1] != "/":
-            directory += "/"
+        directory = self._harmonize_path(directory, "directory", True)
 
         fig = plt.gcf()
 
@@ -226,13 +245,12 @@ class DataManager:
 
             fig.text(0.5, -caption_offset, caption, ha="center", wrap=True, va="top", multialignment="left")
 
-
         if comment is None:
-            return True
+            return fig
 
-        comment_str = f"- `{filename}`: {comment}\n"
+        self.comment_file(filename, comment, category=category)
 
-        self.file_comments[category] = self.file_comments[category] + comment_str
+        return fig
 
     def comment_file(self, filename, comment, category: Literal["raw", "processed"] = "processed"):
 
