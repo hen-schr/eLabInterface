@@ -170,17 +170,17 @@ class DataManager:
                                                   filetypes=[("JSON files", "*.json"), ("text files", "*.txt")],
                                                   title="select vocabulary file")
 
-            filepath = self._harmonize_path(filepath, "file", False)
+        filepath = self._harmonize_path(filepath, "file", False)
 
-            with open(filepath, "r") as readfile:
-                vocabulary = json.load(readfile)
+        with open(filepath, "r") as readfile:
+            vocabulary = json.load(readfile)
 
-            self._check_vocabulary_structure()
+        self._check_vocabulary_structure()
 
-            if self._vocabulary is None or mode == "overwrite":
-                self._vocabulary = vocabulary
-            elif mode == "append":
-                self._vocabulary.update(vocabulary)
+        if self._vocabulary is None or mode == "overwrite":
+            self._vocabulary = vocabulary
+        elif mode == "append":
+            self._vocabulary.update(vocabulary)
 
     def _check_vocabulary_structure(self):
         pass

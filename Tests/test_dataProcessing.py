@@ -80,6 +80,11 @@ class TestDataManager(unittest.TestCase):
         summary = self.manager.generate_summary(parameters, summary_parameters, handle_missing="coerce")
         self.assertEqual("sam; None", summary)
 
+    def test_add_vocabulary(self):
+        self.manager.add_vocabulary(filepath="testfiles/data_elements.json")
+
+        self.assertIsNotNone(self.manager._vocabulary)
+
     def test_savefig(self):
         xy = np.random.rand(2, 100)
 
