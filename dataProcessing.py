@@ -113,7 +113,18 @@ class DataManager:
 
         return summary
 
-    def _generate_param_value_string(self, element, value):
+    def _generate_param_value_string(self, element: str, value: any) -> str:
+        """
+        Generates a string from an element-value pair that includes the value as well as the unit of the value, if
+        specified in the element string.
+        :param element: string describing the parameter, usually in the format 'name / unit'
+        :param value: value to be converted to string
+        :return: string of the value and potentially the unit
+
+        Examples:
+        _generate_param_value_string('time / min', 20) returns '20 min';
+        _generate_param_value_string('name', 'sam') returns 'sam'
+        """
         str_value = str(value)
 
         if is_float(value):
