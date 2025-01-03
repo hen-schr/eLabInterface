@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -5,6 +7,7 @@ from typing import Literal, Union
 import shutil
 import re
 from datetime import datetime
+from tkinter import filedialog
 
 module_version = 0.1
 
@@ -18,6 +21,8 @@ class DataManager:
         self.short_title = short_title
         self._caption_index = 1
         self._summary = None
+
+        self._vocabulary = None
 
         # logging functionality
         self.log = ""
@@ -76,7 +81,8 @@ class DataManager:
         return self._summary
 
     def generate_summary(self, dataset: Union[dict, any], desired_parameters: list[str],
-                         handle_missing: Literal["raise", "ignore", "coerce"]="raise", separator: str="; ") -> str:
+                         handle_missing: Literal["raise", "ignore", "coerce"]="raise", separator: str="; ",
+                         use_vocabulary=False) -> str:
         """
         Generates a summary string for the passed dataset.
         :param dataset: dict or dict-like object
@@ -104,7 +110,10 @@ class DataManager:
         summary = ""
 
         for element, value in display_parameters.items():
-            summary += self._generate_param_value_string(element, value)
+            if use_vocabulary:
+                summary += self._generate_param_value_string(element, value, extraction_method="json")
+            else:
+                summary += self._generate_param_value_string(element, value)
             summary += separator
 
         summary = summary[:-len(separator)]
@@ -113,7 +122,8 @@ class DataManager:
 
         return summary
 
-    def _generate_param_value_string(self, element: str, value: any) -> str:
+    def _generate_param_value_string(self, element: str, value: any,
+                                     extraction_method: Literal["string dissection", "json"]="string dissection") -> str:
         """
         Generates a string from an element-value pair that includes the value as well as the unit of the value, if
         specified in the element string.
@@ -128,31 +138,52 @@ class DataManager:
         str_value = str(value)
 
         if is_float(value):
-            unit = self._get_unit_for_parameter(element)
+            unit = self._get_unit_for_parameter(element, extraction_method=extraction_method)
             if unit != "":
                 str_value += " " + unit
 
         return str_value
 
     def _get_unit_for_parameter(self, parameter: str,
-                                method: Literal["string dissection", "json"]="string dissection",
+                                extraction_method: Literal["string dissection", "json"]="string dissection",
                                 split_string: str=" / ") -> str:
         """
         Extracts the unit from a string of type "name-of-parameter / unit".
         :param parameter: string to extract the unit from
-        :param method:  'string dissection': extracts units by interpreting the passed parameter string
+        :param extraction_method:  'string dissection': extracts units by interpreting the passed parameter string
                         'json': (not implemented) extracts unit based on a json schema
         :param split_string: string to split the parameter string by when 'string dissection' is used
         :return: Unit as str
         """
 
-        if method == "json":
+        if extraction_method == "json":
             raise NotImplementedError("unit interpretation based on JSON vocabulary is not implemented yet")
-        elif method == "string dissection":
+        elif extraction_method == "string dissection":
             split_parameter = parameter.split(split_string, 1)
             unit = split_parameter[1] if len(split_parameter) == 2 else ""
 
             return unit
+
+    def add_vocabulary(self, filepath=None, mode: Literal["overwrite", "append"]="overwrite"):
+        if filepath is None:
+            filepath = filedialog.askopenfilename(initialdir=self._working_directory,
+                                                  filetypes=[("JSON files", "*.json"), ("text files", "*.txt")],
+                                                  title="select vocabulary file")
+
+            filepath = self._harmonize_path(filepath, "file", False)
+
+            with open(filepath, "r") as readfile:
+                vocabulary = json.load(readfile)
+
+            self._check_vocabulary_structure()
+
+            if self._vocabulary is None or mode == "overwrite":
+                self._vocabulary = vocabulary
+            elif mode == "append":
+                self._vocabulary.update(vocabulary)
+
+    def _check_vocabulary_structure(self):
+        pass
 
     def savefig(self, filename, directory=None, comment=None, category="processed", generate_caption=True, caption_offset=None, **kwargs):
 
