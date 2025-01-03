@@ -14,31 +14,55 @@ module_version = 0.1
 
 class DataManager:
     def __init__(self, template_file=None, working_directory=None, short_title=None, silent=False, debug=False):
+        """
+        This class is used to aid with data processing by logging processing steps and results, systematically naming generated files, creating automatic reports or bundling the dataset after the analysis.
 
-        self.template_file = template_file
-        self.file_comments =  {"raw": "", "processed": ""}
-        self._working_directory = working_directory
-        self.short_title = short_title
-        self._caption_index = 1
-        self._summary = None
+        :param template_file: path to a template file, which can be used to generate automatic reports or readme files
+        :param working_directory: directory where files are stored and read from by default
+        :param short_title: a short title for the dataset which is prepended to generated file names
+        :param silent: if true, no log messages will be displayed in the console
+        :param debug: if true, all log messages are displayed in the console
 
-        self._vocabulary = None
+        E.g., an instance of this class can be created in parallel to data processing using pandas (pd) or pyplot (plt) to enhance the analysis process:
 
-        # logging functionality
-        self.log = ""
-        self._silent = silent
-        self._debug = debug
+        *manager = DataManager()*
+
+        *plt.scatter(x, y)*
+
+        *manager.savefig('sample_plt.png', comment='a simple example')*
+
+        *df = pd.DataFrame((x, y))*
+
+        *df.to_csv(manager.get_working_directory() + 'path-to-file.csv')*
+
+        *manager.comment_file('path_to_file.csv', 'an example of csv type data')*
+
+        *manager.generate_readme(readme_template='template-file.md')*
+        """
+
+        self.template_file: Union[str, None] = template_file
+        self.file_comments: dict =  {"raw": "", "processed": ""}
+        self.short_title: Union[str, None] = short_title
+        self._summary: Union[str, None] = None
+        self._caption_index: int = 1
+        self._vocabulary: Union[dict, None] = None
+
+        self.log: str = ""
+        self._silent: bool = silent
+        self._debug: bool = debug
+
+        self._working_directory: Union[str, None] = working_directory
 
         if self._working_directory is None:
-            self._working_directory = os.getcwd().replace("\\", "/")
+            self._working_directory = os.getcwd()
 
-        self._working_directory = self._harmonize_path(self._working_directory, path_type="directory", check_for_existence=True)
+        self._working_directory: str = self._harmonize_path(self._working_directory, path_type="directory", check_for_existence=True)
 
         if not os.path.exists(self._working_directory):
             raise FileNotFoundError(f"path {self._working_directory} does not exist!")
 
     @staticmethod
-    def _harmonize_path(path, path_type: Literal["directory", "file"]="directory", check_for_existence=False):
+    def _harmonize_path(path, path_type: Literal["directory", "file"]="directory", check_for_existence=False) -> str:
 
         # working with unix-like filepaths
         harmonized_path = path.replace("\\", "/")
