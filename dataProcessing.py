@@ -17,8 +17,9 @@ class DataManager:
         self._working_directory = working_directory
         self.short_title = short_title
         self._caption_index = 1
-        self.summary = None
+        self._summary = None
 
+        # logging functionality
         self.log = ""
         self._silent = silent
         self._debug = debug
@@ -71,35 +72,76 @@ class DataManager:
     def set_working_directory(self, path):
         self._working_directory = self._harmonize_path(path, path_type="directory", check_for_existence=True)
 
-    def generate_summary(self, data: Union[dict, any], summary_parameters: list[str],
-                         handle_missing: Literal["raise", "ignore", "coerce"]="raise") -> str:
+    def get_summary(self):
+        return self._summary
 
-        parameters = {}
+    def generate_summary(self, dataset: Union[dict, any], desired_parameters: list[str],
+                         handle_missing: Literal["raise", "ignore", "coerce"]="raise", separator: str="; ") -> str:
+        """
+        Generates a summary string for the passed dataset.
+        :param dataset: dict or dict-like object
+        :param desired_parameters: parameters to extract from the dataset for the summary
+        :param handle_missing:  'raise': KeyError is raised when desired parameter is missing;
+                                'ignore': missing parameters are not added to the summary;
+                                'coerce': missing values are set to None
+        :param separator: character used to separate the parameters in the generated summary string
+        :return: Summary of dateset with parameters separated by the separator
+        """
 
-        for param in summary_parameters:
+        display_parameters = {}
+
+        for param in desired_parameters:
             try:
-                parameters[param] = data[param]
+                display_parameters[param] = dataset[param]
             except KeyError:
                 if handle_missing == "raise":
                     raise KeyError(f"Missing required parameter '{param}'")
                 elif handle_missing == "ignore":
                     pass
                 elif handle_missing == "coerce":
-                    parameters[param] = None
+                    display_parameters[param] = None
 
-        info_display = ""
+        summary = ""
 
-        for param in parameters:
-            info_display += str(parameters[param])
-            info_display += (" " + param.split(" / ")[-1].strip()) if is_float(
-                parameters[param]) and "/" in param else ""
-            info_display += "; "
+        for element, value in display_parameters.items():
+            summary += self._generate_param_value_string(element, value)
+            summary += separator
 
-        info_display = info_display[:-2]
+        summary = summary[:-len(separator)]
 
-        self.summary = info_display
+        self._summary = summary
 
-        return info_display
+        return summary
+
+    def _generate_param_value_string(self, element, value):
+        str_value = str(value)
+
+        if is_float(value):
+            unit = self._get_unit_for_parameter(element)
+            if unit != "":
+                str_value += " " + unit
+
+        return str_value
+
+    def _get_unit_for_parameter(self, parameter: str,
+                                method: Literal["string dissection", "json"]="string dissection",
+                                split_string: str=" / ") -> str:
+        """
+        Extracts the unit from a string of type "name-of-parameter / unit".
+        :param parameter: string to extract the unit from
+        :param method:  'string dissection': extracts units by interpreting the passed parameter string
+                        'json': (not implemented) extracts unit based on a json schema
+        :param split_string: string to split the parameter string by when 'string dissection' is used
+        :return: Unit as str
+        """
+
+        if method == "json":
+            raise NotImplementedError("unit interpretation based on JSON vocabulary is not implemented yet")
+        elif method == "string dissection":
+            split_parameter = parameter.split(split_string, 1)
+            unit = split_parameter[1] if len(split_parameter) == 2 else ""
+
+            return unit
 
     def savefig(self, filename, directory=None, comment=None, category="processed", generate_caption=True, caption_offset=None, **kwargs):
 
