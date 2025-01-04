@@ -327,7 +327,10 @@ class DataManager:
 
 
         self._log(f"converting jupyter notebook '{notebook_name}' to python script...", "PRC")
-        os.system(f"""cd {working_directory} & jupyter nbconvert --to script {notebook_name} --output {script_path}""")
+        wd = os.getcwd()
+        os.chdir(working_directory)
+        os.system(f"""jupyter nbconvert --to script "{notebook_name}" --output "{script_path}" --log-level=ERROR""")
+        os.chdir(wd)
 
         self._log(f"processing generated script...", "PRC")
         with open(working_directory + script_path + ".py", "r") as readfile:
