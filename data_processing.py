@@ -9,6 +9,7 @@ import shutil
 import re
 from datetime import datetime
 from tkinter import filedialog
+import pandas as pd
 
 module_version = 0.2
 
@@ -250,6 +251,31 @@ class DataManager:
 
     def _check_vocabulary_structure(self):
         pass
+
+    def write_dataframe_to_file(self, dataframe: pd.DataFrame, filename: str, directory: str = None,
+                                comment: str = None, category: str = "processed", **kwargs):
+
+        filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
+
+        if directory is None:
+            directory = self._working_directory
+        if directory is None:
+            directory = ""
+
+        directory = self._harmonize_path(directory, "directory", True)
+
+        if "sep" in kwargs:
+            sep = kwargs["sep"]
+        else:
+            sep = ";"
+        if "decimal" in kwargs:
+            decimal = kwargs["decimal"]
+        else:
+            decimal = ","
+
+        dataframe.to_csv(directory + filename, sep=sep, decimal=decimal, **kwargs)
+
+        self.comment_file(filename, comment, category=category)
 
     def savefig(self, filename: str, directory: str=None, comment: str=None, category: str="processed",
                 generate_caption: bool=True, caption_offset: float=None, **kwargs) -> plt.Figure:
@@ -594,6 +620,26 @@ def calculate_permeate_fluxes(x, y, intervals, pressures, average_of_last_min=10
             plt.plot(data_slice_x[x_average:x_stop], data_slice_y[x_average:x_stop], color="r")
 
     return averages, stds_flux
+
+
+def convert_raw_flux_data(data: pd.DataFrame, effective_membrane_area: float, time_format: str = "%H:%M:%S,%f",
+                          reference_time: Union[str, datetime] = None):
+    data["time"] = pd.to_datetime(data.iloc[:, 0], format=time_format)
+
+    if reference_time is None:
+        reference_time = data.iloc[0, 0]
+    elif type(reference_time) is str:
+        reference_time = datetime.strptime(reference_time, time_format)
+
+    # converting to relative time by subtracting the first entry in column 'time / min' from all lines
+    data["time / min"] = (data["time"] - reference_time)
+    data["time / min"] = data["time / min"].apply(lambda i: i.total_seconds() / 60)
+
+    conversion_factor_ml_min_to_LMH = 60 / 1000 / effective_membrane_area
+
+    data["flux / LMH"] = data.iloc[:, 1] * conversion_factor_ml_min_to_LMH
+
+    return data
 
 
 def fit_permeability(x, y, yerr=None, xerr=None, plot=False):
