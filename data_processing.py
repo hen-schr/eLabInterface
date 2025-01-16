@@ -10,7 +10,7 @@ import re
 from datetime import datetime
 from tkinter import filedialog
 
-module_version = 0.1
+module_version = 0.2
 
 
 class DataManager:
