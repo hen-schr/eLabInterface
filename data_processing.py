@@ -48,6 +48,8 @@ class DataManager:
         self._caption_index: int = 1
         self._vocabulary: Union[dict, None] = None
 
+        self._results: dict = {}
+
         self.log: str = ""
         self._silent: bool = silent
         self._debug: bool = debug
@@ -104,6 +106,23 @@ class DataManager:
 
     def get_summary(self):
         return self._summary
+
+    def add_result(self, result_key: str, result_value: str, allow_replacement = True):
+        if result_key not in self._results:
+            self._results[result_key] = result_value
+
+        elif result_key in self._results and allow_replacement:
+
+            self._log(f"Replacing value {result_key}: {self._results[result_key]} -> {result_value}")
+            self._results[result_key] = result_value
+
+        else:
+            raise KeyError(
+                f"Result key {result_key} already exists! Pass 'allow_replacement=True' to overwrite existing values.")
+
+    def print_results(self):
+        for k, v in self._results.items():
+            print(f"{k}: {v}")
 
     def generate_summary(self, dataset: Union[dict, any], desired_parameters: list[str],
                          handle_missing: Literal["raise", "ignore", "coerce"]="raise", separator: str="; ",
