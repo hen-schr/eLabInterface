@@ -253,9 +253,10 @@ class DataManager:
         pass
 
     def write_dataframe_to_file(self, dataframe: pd.DataFrame, filename: str, directory: str = None,
-                                comment: str = None, category: str = "processed", **kwargs):
+                                comment: str = None, category: str = "processed", add_prefix=True, **kwargs):
 
-        filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
+        if add_prefix:
+            filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
 
         if directory is None:
             directory = self._working_directory
@@ -278,7 +279,7 @@ class DataManager:
         self.comment_file(filename, comment, category=category)
 
     def savefig(self, filename: str, directory: str=None, comment: str=None, category: str="processed",
-                generate_caption: bool=True, caption_offset: float=None, **kwargs) -> plt.Figure:
+                generate_caption: bool=True, caption_offset: float=None, add_prefix=True, **kwargs) -> plt.Figure:
         """
         Saves the current pyplot figure. Comments and captions can be added to improve the documentation.
 
@@ -292,7 +293,8 @@ class DataManager:
         :return: current figure without the caption
         """
 
-        filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
+        if add_prefix:
+            filename = ((self.short_title + "_") if self.short_title is not None else "") + filename
 
         if directory is None:
             directory = self._working_directory
