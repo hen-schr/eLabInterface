@@ -19,6 +19,7 @@ import urllib3
 import matplotlib.pyplot as plt
 from elabapi_python import Upload
 from io import StringIO
+import tkinter as tk
 
 module_version = 0.1
 
@@ -75,8 +76,6 @@ class ELNDataLogger:
 
                 except ValueError:
                     print(f"invalid input: type {input_type.__name__} required")
-
-
 
     def _log(self, message: str, category: Literal["PRC", "FIL", "ERR", "WRN", "USR", "COM"] = None) -> None:
         """
@@ -1031,6 +1030,32 @@ class ELNResponse(ELNDataLogger):
         if process:
             self.extract_metadata()
 
+    def load_dataset(self, json_file: str = None, download_directory: str = None):
+
+        if download_directory is None:
+            root = tk.Tk()
+            root.update()
+            download_directory = filedialog.askdirectory(initialdir=os.getcwd(),
+                                                         title="Select directory where data is stored")
+            root.destroy()
+
+        if json_file is None:
+
+            root = tk.Tk()
+            root.update()
+            json_file = filedialog.askopenfilename(initialdir=download_directory, title="Select experiment to load",
+                                                   filetypes=[("JSON files", "*.json"), ("text files", "*.txt")])
+            root.destroy()
+
+        experiment_title = json_file[json_file.rfind("/") + 1:json_file.find("_ELNEntry")]
+
+        self.read_response_from_json(json_file)
+        self.set_download_directory(download_directory)
+
+        self.add_metadata("short title", experiment_title)
+
+        self._log("Imported dataset from file", "FIL")
+
     def as_dict(self, duplicate_handling: Literal["use first", "use last", "user selection"] = "use first"):
         eln_dict = self._metadata
         if self._tables is not None:
@@ -1062,7 +1087,7 @@ class ELNResponse(ELNDataLogger):
                             selection = self.input("select by index: ", input_type="int", value_range=(0, 1))
                             table_dict[element] = possibilities[selection]
 
-        return  table_dict
+        return table_dict
 
 
 class ELNImporter(ELNDataLogger):
