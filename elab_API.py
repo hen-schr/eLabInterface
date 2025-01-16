@@ -676,6 +676,30 @@ class ELNResponse(ELNDataLogger):
 
         return log_lines
 
+    def get_summary_string(self, parameters: list = None) -> str:
+        if parameters is None:
+            parameters = self.as_dict().keys()
+
+        summary_parameters = {}
+
+        for param in parameters:
+            try:
+                summary_parameters[param] = self[param]
+            except KeyError:
+                raise KeyError(f"Missing required parameter '{param}'")
+
+        info_display = ""
+
+        for param in summary_parameters:
+            info_display += summary_parameters[param]
+            info_display += (" " + param.split(" / ")[-1].strip()) if (
+                    is_float(summary_parameters[param]) and "/" in param) else ""
+            info_display += "; "
+
+        info_display = info_display[:-2]
+
+        return info_display
+
     """
     Getters and setters
     """
@@ -1361,6 +1385,17 @@ data: {"received" if self.response is not None else "none"}
         self.clear_response()
 
         return self.working
+
+
+def is_float(value):
+    try:
+        value = float(value)
+    except ValueError:
+        return False
+    except TypeError:
+        return False
+
+    return True
 
 
 def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=None, download_directory=None,
