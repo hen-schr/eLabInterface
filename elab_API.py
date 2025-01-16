@@ -1424,7 +1424,7 @@ def is_float(value):
 
 
 def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=None, download_directory=None,
-                  save_to_json=True, download_attachments=True, debug=False) -> [ELNResponse, str]:
+                  save_to_json=True, download_attachments=True, debug=False, extract_tables=True) -> [ELNResponse, str]:
     importer = ELNImporter(silent=True, debug=debug)
     importer.attach_api_key_from_file(api_file)
     importer.configure_api(url=api_url, permissions="read only",
@@ -1449,6 +1449,9 @@ def smart_request(experiment_id, api_file=None, api_url=None, experiment_title=N
 
     if save_to_json:
         experiment.save_to_json(download_directory + "/" + experiment_title + "_ELNEntry.json")
+
+    if extract_tables:
+        experiment.extract_tables()
 
     experiment.add_metadata("short title", experiment_title)
 
