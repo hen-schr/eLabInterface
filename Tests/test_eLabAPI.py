@@ -5,13 +5,13 @@ import json
 import pandas as pd
 from elabapi_python import Upload
 
-import eLabAPI
+import elab_API
 from unittest.mock import patch
 from urllib3 import HTTPResponse
 import os
 import urllib3
 
-from eLabAPI import ELNResponse
+from elab_API import ELNResponse
 
 
 class TestELNImporter(unittest.TestCase):

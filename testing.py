@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
-import eLabAPI
+import elab_API
 import matplotlib.pyplot as plt
 
 def multiply(x, factor=2):
     y = x ** factor
     return y
 
-from eLabAPI import ELNImporter
+from elab_API import ELNImporter
 
 importer = eLabAPI.ELNImporter(debug=True)
 
