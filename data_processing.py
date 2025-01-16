@@ -355,7 +355,8 @@ class DataManager:
         with open(path, "w") as writefile:
             writefile.write(template)
 
-    def generate_python_from_jupyter(self, notebook_path, script_path=None):
+    def generate_python_from_jupyter(self, notebook_path, script_path=None, assure_local_execution=True,
+                                     pre_text: str = None):
 
         if not os.path.exists(notebook_path):
             notebook_path = self._working_directory + notebook_path
@@ -386,6 +387,21 @@ class DataManager:
 
         script_end = script_str.find("%script end%")
         script_str = script_str[:script_end]
+
+        if pre_text is not None:
+            script_str = pre_text + script_str
+
+        if assure_local_execution:
+            local_code = """
+# make sure that the script is always executed in the same directory as where the script itself is stored
+import os
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
+"""
+
+            script_str = local_code + script_str
 
         with open(working_directory + script_path + ".py", "w") as writefile:
             writefile.write(script_str)
