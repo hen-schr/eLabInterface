@@ -908,6 +908,7 @@ class ELNResponse(ELNDataLogger):
 
         if "decimal" in kwargs:
             decimal = kwargs["decimal"]
+            kwargs.pop("decimal")
         else:
             decimal = "."
 
@@ -1030,7 +1031,7 @@ class ELNResponse(ELNDataLogger):
         if process:
             self.extract_metadata()
 
-    def load_dataset(self, json_file: str = None, download_directory: str = None):
+    def load_dataset(self, json_file: str = None, download_directory: str = None, **kwargs):
 
         if download_directory is None:
             root = tk.Tk()
@@ -1051,6 +1052,13 @@ class ELNResponse(ELNDataLogger):
 
         self.read_response_from_json(json_file)
         self.set_download_directory(download_directory)
+
+        if "decimal" in kwargs:
+            decimal = kwargs["decimal"]
+        else:
+            decimal = "."
+
+        self.extract_tables(decimal=decimal)
 
         self.add_metadata("short title", experiment_title)
 

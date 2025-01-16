@@ -267,10 +267,12 @@ class DataManager:
 
         if "sep" in kwargs:
             sep = kwargs["sep"]
+            kwargs.pop("sep")
         else:
             sep = ";"
         if "decimal" in kwargs:
             decimal = kwargs["decimal"]
+            kwargs.pop("decimal")
         else:
             decimal = ","
 
@@ -365,13 +367,12 @@ class DataManager:
         notebook_name = notebook_path[notebook_path.rfind("/") + 1:].replace(".ipynb", "") + ".ipynb"
 
         if script_path is None:
-            script_path = notebook_path.replace(".ipynb", "") + ".py"
+            script_path = notebook_path.replace(".ipynb", "")
         else:
             script_path = script_path.replace(".py", "")
 
         if script_path[:len(working_directory)] == working_directory:
             script_path = script_path.replace(working_directory, "")
-
 
         self._log(f"converting jupyter notebook '{notebook_name}' to python script...", "PRC")
         wd = os.getcwd()
@@ -416,7 +417,6 @@ class DataManager:
         if jupyter_to_script:
             self.generate_python_from_jupyter(path + self.short_title + ".ipynb")
 
-
         copied_files = 0
 
         for file in file_list:
@@ -445,7 +445,6 @@ class DataManager:
 
         else:
             self._log("created archive with all data concerning the experiment", "FIL")
-
 
     def _copy_scripts(self, origin_directory, target_directory):
         files = os.listdir(origin_directory)
