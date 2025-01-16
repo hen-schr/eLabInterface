@@ -313,7 +313,6 @@ class DataManager:
             if not os.path.exists(notebook_path):
                 raise FileNotFoundError(f"file {notebook_path} does not exist!")
 
-
         working_directory = notebook_path[:notebook_path.rfind("/") + 1]
 
         notebook_name = notebook_path[notebook_path.rfind("/") + 1:].replace(".ipynb", "") + ".ipynb"
