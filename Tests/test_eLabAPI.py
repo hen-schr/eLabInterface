@@ -31,7 +31,7 @@ class TestELNImporter(unittest.TestCase):
         os.rmdir(top)
 
     def setUp(self):
-        self.importer = eLabAPI.ELNImporter(silent=True)
+        self.importer = elab_API.ELNImporter(silent=True)
         self.simple_response = {
             "body": "empty body",
             "id": "00",
@@ -162,7 +162,7 @@ class TestELNImporter(unittest.TestCase):
 
     def test_configure_api(self):
 
-        with patch("eLabAPI.ELNImporter.request") as mocked_request:
+        with patch("elab_API.ELNImporter.request") as mocked_request:
 
             mocked_request.return_value = None
 
@@ -192,14 +192,14 @@ class TestELNImporter(unittest.TestCase):
         os.remove(dummy_file)
 
     def test_clear_response(self):
-        self.importer.response = eLabAPI.ELNResponse(self.simple_http_response.json())
+        self.importer.response = elab_API.ELNResponse(self.simple_http_response.json())
 
         self.importer.clear_response()
 
         self.assertIsNone(self.importer.response)
 
     def test_ping_api(self):
-        with patch("eLabAPI.ELNImporter.request") as mocked_request:
+        with patch("elab_API.ELNImporter.request") as mocked_request:
             mocked_request.response = {"body": "foo"}
 
             self.importer.ping_api()
@@ -223,7 +223,7 @@ class TestELNResponse(unittest.TestCase):
         os.rmdir(top)
 
     def setUp(self):
-        self.response = eLabAPI.ELNResponse(silent=True)
+        self.response = elab_API.ELNResponse(silent=True)
         self.response._response = {
             "body": "empty body",
             "id": "00",
@@ -409,7 +409,7 @@ class TestELNResponse(unittest.TestCase):
             self.response._response["body"] = response
 
             self.response.extract_tables()
-            self.assertEqual(eLabAPI.TabularData, type(self.response._tables[0]))
+            self.assertEqual(elab_API.TabularData, type(self.response._tables[0]))
 
             self.response.extract_tables(output_format="list")
             self.assertEqual(list, type(self.response._tables[0]))
