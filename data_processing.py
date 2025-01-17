@@ -640,7 +640,13 @@ def calculate_permeate_fluxes(x, y, intervals, pressures, average_of_last_min=10
 
 
 def convert_raw_flux_data(data: pd.DataFrame, effective_membrane_area: float, time_format: str = "%H:%M:%S,%f",
-                          reference_time: Union[str, datetime] = None, index_time_column: int = 0):
+                          reference_time: Union[str, datetime] = None,
+                          index_time_column: int = 0, index_flow_rate: int = 1,
+                          flow_rate_unit: Literal["mL min-1", "L h-1"] = "mL min-1"):
+
+    if flow_rate_unit == "mL min-1":
+        raise NotImplementedError("Function can currently only convert values given in 'mL min-1'")
+
     data["time"] = pd.to_datetime(data.iloc[:, index_time_column], format=time_format)
 
     if reference_time is None:
@@ -652,9 +658,14 @@ def convert_raw_flux_data(data: pd.DataFrame, effective_membrane_area: float, ti
     data["time / min"] = (data["time"] - reference_time)
     data["time / min"] = data["time / min"].apply(lambda i: i.total_seconds() / 60)
 
-    conversion_factor_ml_min_to_LMH = 60 / 1000 / effective_membrane_area
+    if flow_rate_unit == "mL min-1":
+        conversion_factor_to_LMH = 60 / 1000 / effective_membrane_area
+    elif flow_rate_unit == "L h-1":
+        conversion_factor_to_LMH = 1 / effective_membrane_area
+    else:
+        raise NotImplementedError("Function can currently only convert values given in 'mL min-1'")
 
-    data["flux / LMH"] = data.iloc[:, 1] * conversion_factor_ml_min_to_LMH
+    data["flux / LMH"] = data.iloc[:, index_flow_rate] * conversion_factor_to_LMH
 
     return data
 
