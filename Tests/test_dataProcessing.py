@@ -17,7 +17,7 @@ class TestDataManager(unittest.TestCase):
         shutil.rmtree("testfiles/dataProcessing")
 
     def setUp(self):
-        self.manager = dataProcessing.DataManager(silent=True, working_directory="testfiles/dataProcessing")
+        self.manager = data_processing.DataManager(silent=True, working_directory="testfiles/dataProcessing")
 
     def tearDown(self):
         pass
@@ -25,14 +25,14 @@ class TestDataManager(unittest.TestCase):
     def test_basic(self):
         self.assertEqual("testfiles/dataProcessing/", self.manager._working_directory)
 
-        manager = dataProcessing.DataManager()
+        manager = data_processing.DataManager()
         cwd = os.getcwd().replace("\\", "/") + "/"
         self.assertEqual(cwd, manager._working_directory)
 
-        manager = dataProcessing.DataManager(working_directory="testfiles\\dataProcessing")
+        manager = data_processing.DataManager(working_directory="testfiles\\dataProcessing")
         self.assertEqual("testfiles/dataProcessing/", manager._working_directory)
 
-        self.assertRaises(FileNotFoundError, dataProcessing.DataManager, working_directory="very invalid directory")
+        self.assertRaises(FileNotFoundError, data_processing.DataManager, working_directory="very invalid directory")
 
     def test_log(self):
         message = "test log message"
@@ -110,7 +110,7 @@ class TestDataManager(unittest.TestCase):
 
 
     def test_generate_readme(self):
-        manager = dataProcessing.DataManager(working_directory="testfiles/dataProcessing", template_file="testfiles/template.md")
+        manager = data_processing.DataManager(working_directory="testfiles/dataProcessing", template_file="testfiles/template.md")
 
         parameters = {"id": 1234, "name": "sam", "job": "scientist"}
 
