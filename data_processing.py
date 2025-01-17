@@ -640,11 +640,11 @@ def calculate_permeate_fluxes(x, y, intervals, pressures, average_of_last_min=10
 
 
 def convert_raw_flux_data(data: pd.DataFrame, effective_membrane_area: float, time_format: str = "%H:%M:%S,%f",
-                          reference_time: Union[str, datetime] = None):
-    data["time"] = pd.to_datetime(data.iloc[:, 0], format=time_format)
+                          reference_time: Union[str, datetime] = None, index_time_column: int = 0):
+    data["time"] = pd.to_datetime(data.iloc[:, index_time_column], format=time_format)
 
     if reference_time is None:
-        reference_time = data.iloc[0, 0]
+        reference_time = data["time"].iloc[0]
     elif type(reference_time) is str:
         reference_time = datetime.strptime(reference_time, time_format)
 
