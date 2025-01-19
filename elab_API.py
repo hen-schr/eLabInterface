@@ -887,15 +887,15 @@ class ELNResponse(ELNDataLogger):
             table_dict[table.title] = table
         return table_dict
 
-    def save_to_csv(self, file, index=None, separator=";"):
+    def save_to_csv(self, file, index=None, **kwargs):
 
         file = file.replace(".csv", "")
 
         if index is None:
             for i, table in enumerate(self._tables):
-                self.__file_manager.write_to_csv(f"{file}-{i+1}", table, separator=separator)
+                self.__file_manager.write_to_csv(f"{file}-{i+1}", table, **kwargs)
         else:
-            self.__file_manager.write_to_csv(file, self._tables[index], separator=separator)
+            self.__file_manager.write_to_csv(file, self._tables[index], **kwargs)
 
     def save_to_json(self, path=None, **kwargs):
 

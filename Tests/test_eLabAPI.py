@@ -435,7 +435,7 @@ class TestELNResponse(unittest.TestCase):
 
         self.response.extract_tables()
 
-        self.response.save_to_csv("testfiles/results/table_conversion.csv", index=0, separator=";")
+        self.response.save_to_csv("testfiles/results/table_conversion.csv", index=0, sep=";")
 
         self.assertTrue(os.path.exists("testfiles/results/table_conversion.csv"))
 
