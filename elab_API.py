@@ -480,9 +480,15 @@ class ELNResponse(ELNDataLogger):
         return string
 
     def __getitem__(self, item):
+        """
+        Access data inside the ELN response (metadata, tabular data) in a dict-like way.
+
+        Warning: You might run into problems when duplicate entries are present inside the entry's tables. Use
+        self.as_dict() to specify the behavior in such cases.
+        """
         eln_dict = self._metadata
         if self._tables is not None:
-            eln_dict.update(self._get_dict_from_tables(duplicate_handling="use first"))
+            eln_dict.update(self._get_dict_from_tables(duplicate_handling="raise error"))
 
         return eln_dict[item]
 
@@ -948,29 +954,61 @@ class ELNResponse(ELNDataLogger):
 
         self._log("Imported dataset from file", "FIL")
 
-    def as_dict(self, duplicate_handling: Literal["use first", "use last", "user selection"] = "use first"):
+    def as_dict(self,
+                duplicate_handling: Literal["use first", "use last", "user selection", "raise error"] = "raise error"
+                ) -> dict:
+        """
+        Returns a dict containing all metadata of the ELN response as well as key-value-pairs retrieved from the tables
+        inside the main body.
+        :param duplicate_handling: Defines behavior upon encountering multiple values for the same key. 'use last' uses
+        the value given at the last occurrence of the key; 'use first' uses the value given at the first occurrence of
+        the key; 'raise error' raises a value error; 'user selection' lets the user select the desired value via input()
+        :return: Dict containing all retrievable key-value-type information about the experiment
+        """
+
         eln_dict = self._metadata
+
         if self._tables is not None:
             eln_dict.update(self._get_dict_from_tables(duplicate_handling=duplicate_handling))
 
         return eln_dict
 
-    def _get_dict_from_tables(self, duplicate_handling: Literal["use last", "use first", "user selection"] = "true"):
+    def _get_dict_from_tables(self,
+                              duplicate_handling: Literal["use last", "use first", "user selection", "raise error"]
+                              = "raise error"
+                              ) -> dict:
+        """
+        Retrieves key-value pairs from tables present in the ELN response.
+
+        Only considers tables with two columns.
+        :param duplicate_handling: Defines behavior upon encountering multiple values for the same key. 'use last' uses
+        the value given at the last occurrence of the key; 'use first' uses the value given at the first occurrence of
+        the key; 'raise error' raises a value error; 'user selection' lets the user select the desired value via input()
+        :return: Dict containing all key-value pairs retrieved from the tables
+        """
         table_dict = {}
 
         for table in self._tables:
+
             if table.width == 2:
+
                 table_data = dict(table._data.values)
+
                 for element in table_data:
+
                     if element not in table_dict:
                         table_dict[element] = table_data[element]
+
                     elif element in table_dict:
                         self._log(f"encountered duplicate metadata entry '{element}'", "WRN")
+
                         if duplicate_handling == "use last":
                             table_dict[element] = table_data[element]
                             self._log(f"value for '{element}' was overwritten", "WRN")
+
                         elif duplicate_handling == "use first":
                             self._log(f"using first value for '{element}'", "PRC")
+
                         elif duplicate_handling == "user selection":
                             self._log(f"please select value to use for {element}", "USR")
                             possibilities = [table_dict[element], table_data[element]]
@@ -978,6 +1016,10 @@ class ELNResponse(ELNDataLogger):
                             self._log(f"1\t{possibilities[1]} (from table '{table.title}')", "USR")
                             selection = self.input("select by index: ", input_type="int", value_range=(0, 1))
                             table_dict[element] = possibilities[selection]
+
+                        elif duplicate_handling == "raise error":
+                            raise ValueError(f"Encountered duplicate metadata entry '{element}'. "
+                                             f"Specify argument 'duplicate_handling' to change the behavior.")
 
         return table_dict
 
