@@ -500,6 +500,7 @@ class ELNResponse(ELNDataLogger):
 
         :param style:   Format of the log string. 'plain' - only the response log is returned. 'timed' - all three logs
                         are merged and sorted by time.'sections' - the three logs are displayed in separate sections
+        :param filter_categories: Select one or more log categories to be displayed instead of showing everything
         :return:        The formatted log string
         """
         if style == "plain":
