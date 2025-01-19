@@ -475,6 +475,45 @@ os.chdir(dname)
         self._log(f"copied {copied_files} scripts", "FIL")
 
 
+class ProcessingStep:
+    def __init__(self, title=None, comment=None, params: dict = None):
+        self.step = title
+        self.comment = comment
+        self.params = params
+
+    def __str__(self):
+
+        step_string = f"{self.step}\n\t"
+        step_string += f"{self.comment}\n\t" if self.comment is not None else ""
+
+        for par, val in self.params.items():
+            step_string += f"- {par}: {val}\n\t"
+
+        step_string = step_string[:-2]
+
+        return step_string
+
+
+class DataProcessor:
+    def __init__(self, proc_type: str = None):
+        self.steps: list[ProcessingStep] = []
+        self.proc_type = proc_type
+
+    def _add_step(self, title, comment=None, params=None):
+        self.steps.append(ProcessingStep(title=title, comment=comment, params=params))
+
+    def __str__(self):
+        step_string = ""
+
+        for i, step in enumerate(self.steps):
+            step_string += f"{i + 1}. {str(step)}\n"
+
+        return step_string
+
+    def linear(self, x, m, c=0) -> float:
+        self._add_step("Linear equation", comment="y = mx + c", params={"m": m, "c": c})
+
+
 def return_slice_of_data(x, y, interval):
 
     actual_interval = [0, 0]
