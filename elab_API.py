@@ -284,26 +284,27 @@ class FileManager(ELNDataLogger):
 
         super().__init__(debug, silent)
 
-    def open_file(self, path, open_csv=True, open_as: str = None, **kwargs) -> Union[str, None]:
+    def open_file(self, path, open_as: Literal["txt", "csv", "json"] = None, **kwargs
+                  ) -> Union[pd.DataFrame, str, None]:
 
         if not os.path.exists(path):
-            self._log(f"Invalid path: '{path}'!", "USR")
-            return None
+            raise FileNotFoundError(f"Invalid path: '{path}'!")
 
         if open_as is not None:
             filetype = open_as
         else:
             filetype = self.analyze_filetype(path)
 
-        if filetype == "csv" and open_csv:
+        if filetype == "csv":
             return self.open_csv(path, **kwargs)
-        elif filetype in ["txt", "csv"]:
+        if filetype == "json":
+            return self.open_json(path, **kwargs)
+        elif filetype == "txt":
             with open(path, "r") as readfile:
                 str_content = readfile.read()
             return str_content
         else:
-            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
-            return None
+            raise NotImplementedError(f"Filetype '{filetype}' is not supported yet!")
 
     @staticmethod
     def write_data_to_file(data, file_path, mode="w"):
@@ -349,6 +350,13 @@ class FileManager(ELNDataLogger):
                 else:
                     csv_data = self.open_csv(path, check=True, delimiter=delimiter)
         return csv_data
+
+    @staticmethod
+    def open_json(path, **kwargs):
+
+        data = json.load(path, **kwargs)
+
+        return data
 
     @staticmethod
     def get_absolute_path(path):
