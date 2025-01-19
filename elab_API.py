@@ -8,6 +8,7 @@ Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
 import csv
 from datetime import datetime
+from importlib.metadata import metadata
 from typing import Union, Literal, Any
 import elabapi_python
 from tkinter import filedialog
@@ -17,6 +18,7 @@ import markdownify
 import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
+import yaml
 from elabapi_python import Upload
 from io import StringIO
 import tkinter as tk
@@ -316,18 +318,27 @@ class FileManager(ELNDataLogger):
         return path[path.rfind(".") + 1:]
 
     @staticmethod
-    def write_to_csv(path: str, data: Union[pd.DataFrame, TabularData], separator=";"):
+    def write_to_csv(path: str, data: Union[pd.DataFrame, TabularData], **kwargs) -> None:
+        """
+        Writes a pandas dataframe to csv.
+        :param path: full path to the file to write the csv data to
+        :param data: pandas.DataFrame or elab_API.TabularData object
+        """
 
         path = path.replace(".csv", "")
 
+        if "encoding" not in kwargs:
+            kwargs["encoding"] = "utf-8"
+
+
         if type(data) is pd.DataFrame:
-            data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+            data.to_csv(f"{path}.csv", **kwargs)
         elif type(data) is TabularData:
-            data._data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+            data._data.to_csv(f"{path}.csv", **kwargs)
 
-    def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", **kwargs):
+    def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", read_metadata=False, **kwargs):
 
-        if remove_metadata:
+        if remove_metadata or read_metadata:
             raw_content = self.open_file(path, open_as="txt")
             raw_content = raw_content.split(metadata_delimiter)
             if len(raw_content) == 1:
@@ -336,6 +347,13 @@ class FileManager(ELNDataLogger):
                 csv_data = pd.read_csv(StringIO(raw_content[2]), **kwargs)
             else:
                 csv_data = pd.read_csv(path, **kwargs)
+
+            if read_metadata:
+
+                metadata_format = kwargs.get("metadata format", "yaml")
+
+                metadata = self.read_metadata_string(raw_content[1], metadata_format=metadata_format)
+
         else:
             csv_data = pd.read_csv(path, **kwargs)
 
@@ -349,7 +367,23 @@ class FileManager(ELNDataLogger):
                     return csv_data
                 else:
                     csv_data = self.open_csv(path, check=True, delimiter=delimiter)
-        return csv_data
+
+        if read_metadata:
+            return csv_data, metadata
+        else:
+            return csv_data
+
+    @staticmethod
+    def read_metadata_string(data_string, metadata_format: Literal["yaml", "json"] = "json") -> dict:
+
+        metadata = {}
+
+        if metadata_format == "yaml":
+            metadata = yaml.safe_load(data_string)
+        elif metadata_format == "json":
+            metadata = json.loads(data_string)
+
+        return metadata
 
     @staticmethod
     def open_json(path, **kwargs):
