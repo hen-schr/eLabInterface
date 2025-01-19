@@ -11,7 +11,7 @@ def multiply(x, factor=2):
 
 from elab_API import ELNImporter
 
-importer = eLabAPI.ELNImporter(debug=True)
+importer = elab_API.ELNImporter(debug=True)
 
 # importer.attach_api_key_from_file(file="C:/Users/Normaler Benutzer/Documents/__0Henrik/Unikram/Promotion/Datenauswertung/Python/NanoData/eLabAPI/api_key.txt")
 # importer.attach_api_key_from_file("C:/Users/Henrik Schröter/Unibox Rostock/Promotion/Datenauswertung/Python/NanoData/eLabAPI/API_key.txt")
@@ -23,8 +23,6 @@ experiment = importer.request(advanced_query="id:5830", limit=1, download_attach
 experiment.toggle_debug()
 
 experiment.save_to_json("Downloads/Test/Demo.json", indent=4)
-
-#experiment.read_response_from_json("C:\\Users\\henri\\Downloads\\2024-11-11-224705-export\\2024-11-11-224705-export\\2024-10-13 - ELN-Demo - affb1138\\export-elabftw.json")
 
 experiment.extract_tables(output_format="dataframes", decimal=",", force_numeric=True)
 
