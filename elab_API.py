@@ -6,9 +6,7 @@ well as methods to convert the data into useful formats for further processing, 
 © 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
-import csv
 from datetime import datetime
-from importlib.metadata import metadata
 from typing import Union, Literal, Any
 import elabapi_python
 from tkinter import filedialog
@@ -103,7 +101,7 @@ class ELNDataLogger:
 
 class TabularData(ELNDataLogger):
     def __init__(self, data: Union[pd.DataFrame, pd.Series, list, dict, Any] = None, metadata: dict = None,
-                 commands=None, title: str = None, datatype: Literal["sample list", "element value", "array"] = None, debug=False, silent=False):
+                title: str = None, datatype: Literal["sample list", "element value", "array"] = None, debug=False, silent=False):
 
         super().__init__(silent=silent, debug=debug)
         self._data = data
@@ -116,9 +114,6 @@ class TabularData(ELNDataLogger):
                 self.title = self._metadata["title"]
             if self.datatype is None and "datatype" in self._metadata:
                 self.datatype = self._metadata["datatype"]
-
-        if commands is not None:
-            self.apply_commands(commands)
 
     def __setitem__(self, key, value):
         if type(self._data) is pd.DataFrame:
@@ -232,10 +227,6 @@ class TabularData(ELNDataLogger):
 
         return converted_list
 
-    def apply_commands(self, commands):
-        for command in commands:
-            pass
-
     def plot(self, x: Union[str, int], y: Union[str, int], ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
@@ -334,9 +325,12 @@ class FileManager(ELNDataLogger):
         if type(data) is pd.DataFrame:
             data.to_csv(f"{path}.csv", **kwargs)
         elif type(data) is TabularData:
-            data._data.to_csv(f"{path}.csv", **kwargs)
+            data.data().to_csv(f"{path}.csv", **kwargs)
 
+    # noinspection PyTypeChecker
     def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", read_metadata=False, **kwargs):
+
+        metadata = {}
 
         if remove_metadata or read_metadata:
             raw_content = self.open_file(path, open_as="txt")
@@ -495,7 +489,6 @@ class ELNResponse(ELNDataLogger):
     def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed",
                    filter_categories: list[Literal["USR", "COM", "PRC, FIL"]] = None) -> str:
         """
-
         Returns the log entries of the Response instance, as well as the attached Importer and FileManager if desired.
 
         :param style:   Format of the log string. 'plain' - only the response log is returned. 'timed' - all three logs
@@ -566,7 +559,16 @@ class ELNResponse(ELNDataLogger):
 
         return log_lines
 
-    def get_summary_string(self, parameters: list = None) -> str:
+    def get_summary_string(self, parameters: list[str] = None, handle_missing: Literal["raise", "ignore"] = "raise") -> str:
+        """
+        Generates a string containing the requested information.
+
+        Can be used to quickly display information about the dataset or attach this information to files or plots.
+        :param parameters: List of keys to retrieve information from the ELNResponse
+        :param handle_missing: Behavior in case of missing parameters. 'raise' raises a ValueError; 'ignore' sets the missing value to None
+        :return: String of parameters, with units in case of numeric values
+        """
+
         if parameters is None:
             parameters = self.as_dict().keys()
 
@@ -576,7 +578,10 @@ class ELNResponse(ELNDataLogger):
             try:
                 summary_parameters[param] = self[param]
             except KeyError:
-                raise KeyError(f"Missing required parameter '{param}'")
+                if handle_missing == "raise":
+                    raise KeyError(f"Missing required parameter '{param}'")
+                elif handle_missing == "ignore":
+                    self._log(f"missing required parameter '{param}'", "WRN")
 
         info_display = ""
 
@@ -626,7 +631,7 @@ class ELNResponse(ELNDataLogger):
         """
         Deletes some data of the ELN response.
         :param selector:
-        :return:
+        :return: None
         """
         if selector == "all":
             self._tables = None
@@ -668,14 +673,14 @@ class ELNResponse(ELNDataLogger):
         else:
             self._debug = state
 
-    def response_to_str(self, indent: str = 4) -> str:
+    def response_to_str(self, indent: str = 4, **kwargs) -> str:
         """
         Converts the response into a formatted json string.
         :param indent: The indentation to use when formatting the json string
         :return: The converted response data in string format
         """
         if self._response is not None:
-            string = json.dumps(self._response, indent=4)
+            string = json.dumps(self._response, indent=indent, **kwargs)
 
             return string
         else:
@@ -755,8 +760,12 @@ class ELNResponse(ELNDataLogger):
 
     def open_attachment(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
         """
-        Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
+        Returns the content of an upload associated with the ELN entry.
+
+        Attachments need to be downloaded and located in the specified download directory for this to work.
+        Use self.list_attachments to get a list of all available attachments.
         :param selection: The name of the upload file (i.e. 'example.txt') or its index
+        :param open_as: Will open the file as the specified file type, overriding the automatic file type identification
         :return: The loaded content of the file - the type depends on the type of the file. None, when no matching file was found.
         """
         string_selection = None
@@ -904,6 +913,7 @@ class ELNResponse(ELNDataLogger):
         else:
             self.__file_manager.write_to_csv(file, self._tables[index], **kwargs)
 
+    # noinspection PyTypeChecker
     def save_to_json(self, path=None, **kwargs):
 
         self._response["requestTimeStamp"] = self.get_metadata("requestTimeStamp")
