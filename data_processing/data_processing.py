@@ -513,6 +513,10 @@ class DataProcessor:
     def linear(self, x, m, c=0) -> float:
         self._add_step("Linear equation", comment="y = mx + c", params={"m": m, "c": c})
 
+        y = x * m + c
+
+        return y
+
 
 def return_slice_of_data(x, y, interval):
 
