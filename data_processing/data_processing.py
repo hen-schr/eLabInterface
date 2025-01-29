@@ -475,6 +475,49 @@ os.chdir(dname)
         self._log(f"copied {copied_files} scripts", "FIL")
 
 
+class ProcessingStep:
+    def __init__(self, title=None, comment=None, params: dict = None):
+        self.step = title
+        self.comment = comment
+        self.params = params
+
+    def __str__(self):
+
+        step_string = f"{self.step}\n\t"
+        step_string += f"{self.comment}\n\t" if self.comment is not None else ""
+
+        for par, val in self.params.items():
+            step_string += f"- {par}: {val}\n\t"
+
+        step_string = step_string[:-2]
+
+        return step_string
+
+
+class DataProcessor:
+    def __init__(self, proc_type: str = None):
+        self.steps: list[ProcessingStep] = []
+        self.proc_type = proc_type
+
+    def _add_step(self, title, comment=None, params=None):
+        self.steps.append(ProcessingStep(title=title, comment=comment, params=params))
+
+    def __str__(self):
+        step_string = ""
+
+        for i, step in enumerate(self.steps):
+            step_string += f"{i + 1}. {str(step)}\n"
+
+        return step_string
+
+    def linear(self, x, m, c=0) -> float:
+        self._add_step("Linear equation", comment="y = mx + c", params={"m": m, "c": c})
+
+        y = x * m + c
+
+        return y
+
+
 def return_slice_of_data(x, y, interval):
 
     actual_interval = [0, 0]
@@ -528,24 +571,24 @@ def orig_linear(x, m):
 def generate_readme(parameters, path, readme_template="README.md"):
     with open(readme_template, "r") as readfile:
         template = readfile.read()
-       
+
     for key, value in parameters.items():
         template = template.replace(f"%{key}%", str(value))
-        
+
     with open(path, "w") as writefile:
         writefile.write(template)
 
 
 def savefig(directory, filename, comment=None, comment_file=None, **kwargs):
-    
+
     if directory[-1] != "/":
         directory += "/"
-    
+
     plt.savefig(directory + filename, **kwargs)
-    
+
     if comment_file is None:
         comment_file = directory + "file_comments.temp"
-    
+
     if comment is not None:
         comment_str = f"- `{filename}`: {comment}\n"
         with open(comment_file, "a") as writefile:
@@ -553,16 +596,16 @@ def savefig(directory, filename, comment=None, comment_file=None, **kwargs):
 
 
 def clear_comment_file(directory, filename="file_comments.temp"):
-    
+
     if directory[-1] != "/":
         directory += "/"
-    
+
     if os.path.exists(directory + filename):
         os.remove(directory + filename)
 
 
 def comment_file(filename, comment, comment_file="file_comments.temp"):
-    
+
     comment_str = f"- `{filename}`: {comment}\n"
     with open(comment_file, "a") as writefile:
         writefile.write(comment_str)
@@ -579,6 +622,7 @@ def is_float(value):
     return True
 
 
+<<<<<<<< HEAD:data_processing.py
 def calculate_averages_over_pressure(pressures, permeate_fluxes):
     unified_pressures = []
     unified_permeate_fluxes = []
@@ -698,6 +742,8 @@ def fit_permeability(x, y, yerr=None, xerr=None, plot=False):
     return permeability, errors
 
 
+========
+>>>>>>>> origin/master:data_processing/data_processing.py
 calibration_dict = {
     "2nd order polynome": polynome,
     "inverted polynome": inverted_polynome,

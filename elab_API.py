@@ -6,7 +6,6 @@ well as methods to convert the data into useful formats for further processing, 
 © 2024 by Henrik Schröter, licensed under CC BY-SA 4.0
 Email: henrik.schroeter@uni-rostock.de / ORCID 0009-0008-1112-2835
 """
-import csv
 from datetime import datetime
 from typing import Union, Literal, Any
 import elabapi_python
@@ -17,6 +16,7 @@ import markdownify
 import pandas as pd
 import urllib3
 import matplotlib.pyplot as plt
+import yaml
 from elabapi_python import Upload
 from io import StringIO
 import tkinter as tk
@@ -101,7 +101,7 @@ class ELNDataLogger:
 
 class TabularData(ELNDataLogger):
     def __init__(self, data: Union[pd.DataFrame, pd.Series, list, dict, Any] = None, metadata: dict = None,
-                 commands=None, title: str = None, datatype: Literal["sample list", "element value", "array"] = None, debug=False, silent=False):
+                title: str = None, datatype: Literal["sample list", "element value", "array"] = None, debug=False, silent=False):
 
         super().__init__(silent=silent, debug=debug)
         self._data = data
@@ -114,9 +114,6 @@ class TabularData(ELNDataLogger):
                 self.title = self._metadata["title"]
             if self.datatype is None and "datatype" in self._metadata:
                 self.datatype = self._metadata["datatype"]
-
-        if commands is not None:
-            self.apply_commands(commands)
 
     def __setitem__(self, key, value):
         if type(self._data) is pd.DataFrame:
@@ -230,10 +227,6 @@ class TabularData(ELNDataLogger):
 
         return converted_list
 
-    def apply_commands(self, commands):
-        for command in commands:
-            pass
-
     def plot(self, x: Union[str, int], y: Union[str, int], ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
@@ -256,164 +249,6 @@ class TabularData(ELNDataLogger):
                 raise ValueError
         else:
             self._log("this function is not available for this type of data at the moment", "USR")
-
-
-class MDInterpreter:
-    def __init__(self, raw_content: str):
-        self.raw = raw_content
-        self.tables = []
-
-    def extract_tables(self, output_format: Literal["dataframes", "list"] = "dataframes", reformat=True):
-
-        commands, tables = self._get_raw_tabular_data()
-
-        data_objects = []
-
-        if output_format == "list":
-            for i, table in enumerate(tables):
-
-                converted_table = self._interpret_inline_commands(commands[i], table)
-
-                if converted_table is not None:
-                    data_objects.append(converted_table)
-
-        elif output_format == "dataframes":
-            for i, table in enumerate(tables):
-                converted_table = self._table_array_to_dataframe(table)
-                converted_table = converted_table.drop([1])
-                converted_table = self._interpret_inline_commands(commands[i], converted_table)
-
-                if reformat:
-                    converted_table = self._reformat_dataframe(converted_table)
-
-                data_objects.append(converted_table)
-
-        self.tables = data_objects
-
-        return tables
-
-    def _get_raw_tabular_data(self, separator: str = "|"):
-
-        tables = []
-        table_started = False
-        start_index = 0
-        commands = [[]]
-
-        lines = self.raw.split("\n")
-
-        # add empty line at the end of lines to make sure that table ends are detected correctly
-        lines.append("")
-
-        for i, line in enumerate(lines):
-            if len(line) == 0 and not table_started:
-                pass
-
-            elif len(line) == 0 and table_started:
-                table_started = False
-                stop_index = i
-                commands.append([])
-                tables.append(lines[start_index:stop_index])
-
-            elif line[0] == ".":
-                commands[-1].append(line[1:])
-
-            elif line[0] == separator and not table_started:
-                table_started = True
-                start_index = i
-
-            elif table_started and line[0] == separator:
-                pass
-
-            elif table_started:
-                table_started = False
-                stop_index = i
-                commands.append([])
-
-                tables.append(lines[start_index:stop_index])
-
-        commands = commands[:-1]
-
-        converted_tables = []
-
-        for table in tables:
-            conv_table = self._line_list_to_array(table)
-            converted_tables.append(conv_table)
-
-        return commands, converted_tables
-
-    @staticmethod
-    def _line_list_to_array(table_lines: list[str], separator="|", del_chars=True):
-
-        print(table_lines)
-
-        if del_chars:
-            proc_table_lines = []
-            for line in table_lines:
-                proc_line = line.replace(f" {separator} ", separator)
-                proc_line = proc_line.replace(f"{separator} ", "")
-                proc_line = proc_line.replace(f" {separator}", "")
-                proc_table_lines.append(proc_line)
-            converted_table = csv.reader(proc_table_lines, delimiter=separator)
-        else:
-            converted_table = csv.reader(table_lines, delimiter=separator)
-
-        print(list(converted_table))
-
-        return converted_table
-
-    @staticmethod
-    def _table_array_to_dataframe(table_array: list[list]):
-        df = pd.DataFrame.from_records(table_array)
-
-        return df
-
-    @staticmethod
-    def _interpret_inline_commands(commands: list[str], table: Union[list[list], pd.DataFrame]
-                                   ) -> Union[list[list], pd.DataFrame]:
-        if type(table) is list[list]:
-            for command in commands:
-                if command == "ignore":
-                    table = None
-        elif type(table) is pd.DataFrame:
-            for command in commands:
-                if command == "ignore":
-                    table = None
-                elif command[:7] == "title\\=":
-                    title = command[7:]
-
-        return table
-
-    def _reformat_dataframe(self, dataframe: pd.DataFrame, convert_numbers=True):
-
-        if dataframe.shape[1] == 2:
-            header = dataframe[dataframe.columns[0]].values.tolist()
-            dataframe = dataframe.set_axis(labels=header, axis=0)
-            dataframe = dataframe.drop(dataframe.columns[0], axis="columns")
-
-        else:
-            header = dataframe.iloc[0].values.tolist()
-            dataframe = dataframe.set_axis(labels=header, axis="columns")
-            dataframe = dataframe.drop(0)
-
-            if dataframe.columns[0].lower() in ["probe", "sample", "nr."]:
-                header = dataframe[dataframe.columns[0]].values.tolist()
-                dataframe = dataframe.set_axis(labels=header, axis=0)
-                dataframe = dataframe.drop(dataframe.columns[0], axis="columns")
-
-        dataframe = self._convert_comma_to_point(dataframe, secure=False)
-
-        dataframe = dataframe.convert_dtypes()
-
-        return dataframe
-
-    @staticmethod
-    def _convert_comma_to_point(dataframe, secure=True):
-        if not secure:
-            dataframe = dataframe.apply(lambda x: x.str.replace(',', '.'))
-        else:
-            # TODO secure conversion for the case that entries contain both points and commas
-            pass
-        return dataframe
 
 
 class HelperElabftw:
@@ -442,26 +277,27 @@ class FileManager(ELNDataLogger):
 
         super().__init__(debug, silent)
 
-    def open_file(self, path, open_csv=True, open_as: str = None, **kwargs) -> Union[str, None]:
+    def open_file(self, path, open_as: Literal["txt", "csv", "json"] = None, **kwargs
+                  ) -> Union[pd.DataFrame, str, None]:
 
         if not os.path.exists(path):
-            self._log(f"Invalid path: '{path}'!", "USR")
-            return None
+            raise FileNotFoundError(f"Invalid path: '{path}'!")
 
         if open_as is not None:
             filetype = open_as
         else:
             filetype = self.analyze_filetype(path)
 
-        if filetype == "csv" and open_csv:
+        if filetype == "csv":
             return self.open_csv(path, **kwargs)
-        elif filetype in ["txt", "csv"]:
+        if filetype == "json":
+            return self.open_json(path, **kwargs)
+        elif filetype == "txt":
             with open(path, "r") as readfile:
                 str_content = readfile.read()
             return str_content
         else:
-            self._log(f"Filetype '{filetype}' is not supported yet!", "USR")
-            return None
+            raise NotImplementedError(f"Filetype '{filetype}' is not supported yet!")
 
     @staticmethod
     def write_data_to_file(data, file_path, mode="w"):
@@ -473,18 +309,30 @@ class FileManager(ELNDataLogger):
         return path[path.rfind(".") + 1:]
 
     @staticmethod
-    def write_to_csv(path: str, data: Union[pd.DataFrame, TabularData], separator=";"):
+    def write_to_csv(path: str, data: Union[pd.DataFrame, TabularData], **kwargs) -> None:
+        """
+        Writes a pandas dataframe to csv.
+        :param path: full path to the file to write the csv data to
+        :param data: pandas.DataFrame or elab_API.TabularData object
+        """
 
         path = path.replace(".csv", "")
 
+        if "encoding" not in kwargs:
+            kwargs["encoding"] = "utf-8"
+
+
         if type(data) is pd.DataFrame:
-            data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+            data.to_csv(f"{path}.csv", **kwargs)
         elif type(data) is TabularData:
-            data._data.to_csv(f"{path}.csv", encoding="utf-8", sep=separator)
+            data.data().to_csv(f"{path}.csv", **kwargs)
 
-    def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", **kwargs):
+    # noinspection PyTypeChecker
+    def open_csv(self, path, check=True, remove_metadata=True, metadata_delimiter="---\n", read_metadata=False, **kwargs):
 
-        if remove_metadata:
+        metadata = {}
+
+        if remove_metadata or read_metadata:
             raw_content = self.open_file(path, open_as="txt")
             raw_content = raw_content.split(metadata_delimiter)
             if len(raw_content) == 1:
@@ -493,6 +341,13 @@ class FileManager(ELNDataLogger):
                 csv_data = pd.read_csv(StringIO(raw_content[2]), **kwargs)
             else:
                 csv_data = pd.read_csv(path, **kwargs)
+
+            if read_metadata:
+
+                metadata_format = kwargs.get("metadata format", "yaml")
+
+                metadata = self.read_metadata_string(raw_content[1], metadata_format=metadata_format)
+
         else:
             csv_data = pd.read_csv(path, **kwargs)
 
@@ -506,7 +361,30 @@ class FileManager(ELNDataLogger):
                     return csv_data
                 else:
                     csv_data = self.open_csv(path, check=True, delimiter=delimiter)
-        return csv_data
+
+        if read_metadata:
+            return csv_data, metadata
+        else:
+            return csv_data
+
+    @staticmethod
+    def read_metadata_string(data_string, metadata_format: Literal["yaml", "json"] = "json") -> dict:
+
+        metadata = {}
+
+        if metadata_format == "yaml":
+            metadata = yaml.safe_load(data_string)
+        elif metadata_format == "json":
+            metadata = json.loads(data_string)
+
+        return metadata
+
+    @staticmethod
+    def open_json(path, **kwargs):
+
+        data = json.load(path, **kwargs)
+
+        return data
 
     @staticmethod
     def get_absolute_path(path):
@@ -596,20 +474,26 @@ class ELNResponse(ELNDataLogger):
         return string
 
     def __getitem__(self, item):
+        """
+        Access data inside the ELN response (metadata, tabular data) in a dict-like way.
+
+        Warning: You might run into problems when duplicate entries are present inside the entry's tables. Use
+        self.as_dict() to specify the behavior in such cases.
+        """
         eln_dict = self._metadata
         if self._tables is not None:
-            eln_dict.update(self._get_dict_from_tables(duplicate_handling="use first"))
+            eln_dict.update(self._get_dict_from_tables(duplicate_handling="raise error"))
 
         return eln_dict[item]
 
     def log_to_str(self, style: Literal["plain", "timed", "sections"] = "timed",
                    filter_categories: list[Literal["USR", "COM", "PRC, FIL"]] = None) -> str:
         """
-
         Returns the log entries of the Response instance, as well as the attached Importer and FileManager if desired.
 
         :param style:   Format of the log string. 'plain' - only the response log is returned. 'timed' - all three logs
                         are merged and sorted by time.'sections' - the three logs are displayed in separate sections
+        :param filter_categories: Select one or more log categories to be displayed instead of showing everything
         :return:        The formatted log string
         """
         if style == "plain":
@@ -675,7 +559,16 @@ class ELNResponse(ELNDataLogger):
 
         return log_lines
 
-    def get_summary_string(self, parameters: list = None) -> str:
+    def get_summary_string(self, parameters: list[str] = None, handle_missing: Literal["raise", "ignore"] = "raise") -> str:
+        """
+        Generates a string containing the requested information.
+
+        Can be used to quickly display information about the dataset or attach this information to files or plots.
+        :param parameters: List of keys to retrieve information from the ELNResponse
+        :param handle_missing: Behavior in case of missing parameters. 'raise' raises a ValueError; 'ignore' sets the missing value to None
+        :return: String of parameters, with units in case of numeric values
+        """
+
         if parameters is None:
             parameters = self.as_dict().keys()
 
@@ -685,7 +578,10 @@ class ELNResponse(ELNDataLogger):
             try:
                 summary_parameters[param] = self[param]
             except KeyError:
-                raise KeyError(f"Missing required parameter '{param}'")
+                if handle_missing == "raise":
+                    raise KeyError(f"Missing required parameter '{param}'")
+                elif handle_missing == "ignore":
+                    self._log(f"missing required parameter '{param}'", "WRN")
 
         info_display = ""
 
@@ -735,7 +631,7 @@ class ELNResponse(ELNDataLogger):
         """
         Deletes some data of the ELN response.
         :param selector:
-        :return:
+        :return: None
         """
         if selector == "all":
             self._tables = None
@@ -777,14 +673,14 @@ class ELNResponse(ELNDataLogger):
         else:
             self._debug = state
 
-    def response_to_str(self, indent: str = 4) -> str:
+    def response_to_str(self, indent: str = 4, **kwargs) -> str:
         """
         Converts the response into a formatted json string.
         :param indent: The indentation to use when formatting the json string
         :return: The converted response data in string format
         """
         if self._response is not None:
-            string = json.dumps(self._response, indent=4)
+            string = json.dumps(self._response, indent=indent, **kwargs)
 
             return string
         else:
@@ -864,8 +760,12 @@ class ELNResponse(ELNDataLogger):
 
     def open_attachment(self, selection: Union[str, int], open_as: str = None, **kwargs) -> Union[str, any, None]:
         """
-        Returns the content of an upload associated with the ELN entry. Attachments have need to be downloaded for this to work.
+        Returns the content of an upload associated with the ELN entry.
+
+        Attachments need to be downloaded and located in the specified download directory for this to work.
+        Use self.list_attachments to get a list of all available attachments.
         :param selection: The name of the upload file (i.e. 'example.txt') or its index
+        :param open_as: Will open the file as the specified file type, overriding the automatic file type identification
         :return: The loaded content of the file - the type depends on the type of the file. None, when no matching file was found.
         """
         string_selection = None
@@ -1003,16 +903,17 @@ class ELNResponse(ELNDataLogger):
             table_dict[table.title] = table
         return table_dict
 
-    def save_to_csv(self, file, index=None, separator=";"):
+    def save_to_csv(self, file, index=None, **kwargs):
 
         file = file.replace(".csv", "")
 
         if index is None:
             for i, table in enumerate(self._tables):
-                self.__file_manager.write_to_csv(f"{file}-{i+1}", table, separator=separator)
+                self.__file_manager.write_to_csv(f"{file}-{i+1}", table, **kwargs)
         else:
-            self.__file_manager.write_to_csv(file, self._tables[index], separator=separator)
+            self.__file_manager.write_to_csv(file, self._tables[index], **kwargs)
 
+    # noinspection PyTypeChecker
     def save_to_json(self, path=None, **kwargs):
 
         self._response["requestTimeStamp"] = self.get_metadata("requestTimeStamp")
@@ -1064,29 +965,61 @@ class ELNResponse(ELNDataLogger):
 
         self._log("Imported dataset from file", "FIL")
 
-    def as_dict(self, duplicate_handling: Literal["use first", "use last", "user selection"] = "use first"):
+    def as_dict(self,
+                duplicate_handling: Literal["use first", "use last", "user selection", "raise error"] = "raise error"
+                ) -> dict:
+        """
+        Returns a dict containing all metadata of the ELN response as well as key-value-pairs retrieved from the tables
+        inside the main body.
+        :param duplicate_handling: Defines behavior upon encountering multiple values for the same key. 'use last' uses
+        the value given at the last occurrence of the key; 'use first' uses the value given at the first occurrence of
+        the key; 'raise error' raises a value error; 'user selection' lets the user select the desired value via input()
+        :return: Dict containing all retrievable key-value-type information about the experiment
+        """
+
         eln_dict = self._metadata
+
         if self._tables is not None:
             eln_dict.update(self._get_dict_from_tables(duplicate_handling=duplicate_handling))
 
         return eln_dict
 
-    def _get_dict_from_tables(self, duplicate_handling: Literal["use last", "use first", "user selection"] = "true"):
+    def _get_dict_from_tables(self,
+                              duplicate_handling: Literal["use last", "use first", "user selection", "raise error"]
+                              = "raise error"
+                              ) -> dict:
+        """
+        Retrieves key-value pairs from tables present in the ELN response.
+
+        Only considers tables with two columns.
+        :param duplicate_handling: Defines behavior upon encountering multiple values for the same key. 'use last' uses
+        the value given at the last occurrence of the key; 'use first' uses the value given at the first occurrence of
+        the key; 'raise error' raises a value error; 'user selection' lets the user select the desired value via input()
+        :return: Dict containing all key-value pairs retrieved from the tables
+        """
         table_dict = {}
 
         for table in self._tables:
+
             if table.width == 2:
+
                 table_data = dict(table._data.values)
+
                 for element in table_data:
+
                     if element not in table_dict:
                         table_dict[element] = table_data[element]
+
                     elif element in table_dict:
                         self._log(f"encountered duplicate metadata entry '{element}'", "WRN")
+
                         if duplicate_handling == "use last":
                             table_dict[element] = table_data[element]
                             self._log(f"value for '{element}' was overwritten", "WRN")
+
                         elif duplicate_handling == "use first":
                             self._log(f"using first value for '{element}'", "PRC")
+
                         elif duplicate_handling == "user selection":
                             self._log(f"please select value to use for {element}", "USR")
                             possibilities = [table_dict[element], table_data[element]]
@@ -1094,6 +1027,10 @@ class ELNResponse(ELNDataLogger):
                             self._log(f"1\t{possibilities[1]} (from table '{table.title}')", "USR")
                             selection = self.input("select by index: ", input_type="int", value_range=(0, 1))
                             table_dict[element] = possibilities[selection]
+
+                        elif duplicate_handling == "raise error":
+                            raise ValueError(f"Encountered duplicate metadata entry '{element}'. "
+                                             f"Specify argument 'duplicate_handling' to change the behavior.")
 
         return table_dict
 

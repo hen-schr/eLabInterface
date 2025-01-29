@@ -1,5 +1,5 @@
 import unittest
-import data_processing
+from data_processing import data_processing
 import numpy as np
 import matplotlib.pyplot as plt
 import os

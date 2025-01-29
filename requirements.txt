@@ -6,7 +6,7 @@ elabapi-python==5.1.0
 fonttools==4.55.3
 kiwisolver==1.4.7
 lxml==5.3.0
-markdownify==0.14.1
+markdownify~=0.13.1
 matplotlib==3.10.0
 numpy==2.2.0
 packaging==24.2
@@ -21,3 +21,5 @@ soupsieve==2.6
 tk==0.1.0
 tzdata==2024.2
 urllib3==2.2.3
+
+PyYAML~=6.0.2
