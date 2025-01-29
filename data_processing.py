@@ -644,8 +644,8 @@ def convert_raw_flux_data(data: pd.DataFrame, effective_membrane_area: float, ti
                           index_time_column: int = 0, index_flow_rate: int = 1,
                           flow_rate_unit: Literal["mL min-1", "L h-1"] = "mL min-1"):
 
-    if flow_rate_unit == "mL min-1":
-        raise NotImplementedError("Function can currently only convert values given in 'mL min-1'")
+    if flow_rate_unit not in ["mL min-1", "L h-1"]:
+        raise NotImplementedError("Function can currently only convert values given in 'mL min-1' or 'L h-1'")
 
     data["time"] = pd.to_datetime(data.iloc[:, index_time_column], format=time_format)
 
