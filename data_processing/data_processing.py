@@ -622,7 +622,6 @@ def is_float(value):
     return True
 
 
-<<<<<<<< HEAD:data_processing.py
 def calculate_averages_over_pressure(pressures, permeate_fluxes):
     unified_pressures = []
     unified_permeate_fluxes = []
@@ -742,8 +741,18 @@ def fit_permeability(x, y, yerr=None, xerr=None, plot=False):
     return permeability, errors
 
 
-========
->>>>>>>> origin/master:data_processing/data_processing.py
+def calculate_r_squared(x_data, y_data, optimized_parameters, function) -> float:
+    x_data = np.asarray(x_data)
+    y_data = np.asarray(y_data)
+    residuals = y_data - function(x_data, *optimized_parameters)
+    ss_residuals = np.sum(residuals ** 2)
+    ss_total = np.sum((y_data - np.mean(y_data)) ** 2)
+
+    r_squared = 1 - (ss_residuals / ss_total)
+
+    return r_squared
+
+
 calibration_dict = {
     "2nd order polynome": polynome,
     "inverted polynome": inverted_polynome,
