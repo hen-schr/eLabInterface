@@ -1133,7 +1133,6 @@ data: {"received" if self.response is not None else "none"}
 
                 self.response.add_metadata("requestTimeStamp", datetime.strftime(datetime.now(), "%y-%m-%d %H:%M:%S"))
 
-
                 if read_attachments or download_attachments:
                     self.response.extract_metadata()
                     self.request_attachments(self.response.id)
